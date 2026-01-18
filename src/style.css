@@ -1,0 +1,49 @@
+@font-face {
+  font-family: 'HarmonyOS_Sans';
+  font-style: normal;
+  font-display: swap;
+  src: url('/HarmonyOS_Sans.subset.woff2') format('woff2');
+}
+
+:root {
+  --paper-bg: #fdfbf7;
+  --paper-line: #e1ded5;
+  --text-color: #2c3e50;
+  --accent-color: #e67e22;
+  --handwriting-font: 'HarmonyOS_Sans', sans-serif;
+  /* Option: 'Long Cang', cursive */
+  --ink-color: #2c3e50;
+  --highlight-color: #f1c40f80;
+}
+
+body {
+  margin: 0;
+  font-family: var(--handwriting-font);
+  background-color: #555;
+  color: var(--text-color);
+  min-height: 100vh;
+}
+
+/* Simulate paper texture effect with a pseudo-element overlay if needed, 
+   or keep it clean with just the grid. Let's add a subtle noise maybe later. */
+
+button {
+  font-family: var(--handwriting-font);
+  cursor: pointer;
+}
+
+input,
+textarea {
+  font-family: var(--handwriting-font);
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--text-color);
+  color: var(--ink-color);
+  font-size: inherit;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-bottom: 2px solid var(--accent-color);
+}
