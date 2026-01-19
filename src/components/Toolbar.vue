@@ -6,9 +6,13 @@ const props = defineProps({
   isLessonPlan: {
     type: Boolean,
     default: false
+  },
+  isPPT: {
+    type: Boolean,
+    default: false
   }
 })
-const emit = defineEmits(['export-pdf', 'export-word', 'export-json', 'import-json', 'save-template', 'load-template', 'reset-data', 'open-settings'])
+const emit = defineEmits(['export-pdf', 'export-word', 'export-ppt', 'export-json', 'import-json', 'save-template', 'load-template', 'reset-data', 'open-settings'])
 
 const isExpanded = ref(false)
 const showServiceModal = ref(false)
@@ -50,6 +54,7 @@ const handleFileImport = (event) => {
       <button @click="$emit('reset-data')" style="color: #c0392b; border-color: #c0392b;">🗑️ 重置数据</button>
       
       <button v-if="isLessonPlan" @click="$emit('export-word')">📄 导出 Word</button>
+      <button v-else-if="isPPT" @click="$emit('export-ppt')">📽️ 导出 PPT</button>
       <button v-else @click="$emit('export-pdf')">📄 导出 PDF</button>
 
       <div class="separator"></div>

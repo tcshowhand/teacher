@@ -139,7 +139,9 @@ const handleGenerate = async () => {
 }
 
 const goToExam = (chapter, index, type) => {
-  const path = type === 'lesson_plan' ? '/lesson-plan' : '/exam'
+  let path = '/lesson-plan'
+  if (type === 'exam') path = '/exam'
+  if (type === 'ppt') path = '/ppt'
   router.push({ 
     path: path, 
     query: { 
@@ -254,10 +256,13 @@ const handleAIUpdate = (newChapters) => {
           </div>
           <div class="actions">
             <button class="action-btn plan-btn" @click="goToExam(chapter, index, 'lesson_plan')">
-              📘 编辑教案
+              📘 教案编辑
             </button>
             <button class="action-btn exam-btn" @click="goToExam(chapter, index, 'exam')">
-              📝 生成试题
+              📝 试题编辑
+            </button>
+            <button class="action-btn ppt-btn" @click="goToExam(chapter, index, 'ppt')">
+              📽️ 生成 PPT
             </button>
           </div>
         </div>
@@ -889,5 +894,15 @@ input:focus {
 .ai-chat-fab:hover {
   transform: scale(1.05);
   background: #34495e;
+}
+
+.ppt-btn {
+  color: #8e44ad;
+}
+
+.ppt-btn:hover {
+  background: #f3e5f5;
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
 }
 </style>

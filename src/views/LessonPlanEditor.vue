@@ -140,8 +140,8 @@ const loadCurrentData = async () => {
                 if (state.courseName === courseName || state.courseName === route.query.courseName) { // Loose match in case of encoding
                     const foundChapter = state.generatedChapters.find(c => c.id === Number(chapterId))
                     if (foundChapter) {
-                        examData.value['授课课题'] = state.courseName
-                        examData.value['子章节'] = foundChapter.mainTitle
+                        examData.value['授课课题'] = foundChapter.mainTitle
+                        examData.value['子章节'] = foundChapter.subTitle || ''
                         // Only sync summary/mode if they are really set, otherwise keep existing specific edits might be better?
                         // User request: "修改信息，他不会同步" -> Implies they want overwrite.
                         if (foundChapter.summary) examData.value['摘要'] = foundChapter.summary
