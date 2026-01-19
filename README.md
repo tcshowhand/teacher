@@ -8,6 +8,9 @@
 [![GitHub Solved Issues](https://img.shields.io/github/issues-closed/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/issues?q=is%3Aissue+is%3Aclosed)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/commits/main)
 
+## 在线地址s
+项目链接： [https://www.ytecn.com/teacher/](https://www.ytecn.com/teacher/)
+
 ## 🌟 核心功能
 
 - **智能教案生成 (AI Lesson Planning)**
@@ -44,19 +47,26 @@
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### 1. 下载项目
+
+```bash
+git clone https://github.com/tcshowhand/teacher.git
+cd teacher
+```
+
+### 2. 安装依赖
 
 ```bash
 npm install
 ```
 
-### 2. 启动开发服务器
+### 3. 启动开发服务器
 
 ```bash
 npm run dev
 ```
 
-### 3. 构建生产版本
+### 4. 构建生产版本
 
 ```bash
 npm run build
