@@ -1,6 +1,4 @@
-# 豫唐教师辅助教学平台
-
-基于 Vue 3 + Vite 开发的现代化教师辅助工具，旨在提升备课与教学效率。
+# 豫唐教师辅助教学平台：数字媒体技术专业级教研效率工具
 
 [![GitHub Stars](https://img.shields.io/github/stars/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/network/members)
@@ -8,46 +6,59 @@
 [![GitHub Solved Issues](https://img.shields.io/github/issues-closed/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/issues?q=is%3Aissue+is%3Aclosed)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/commits/main)
 
+## 项目定位
+
+豫唐教师辅助教学平台（Yutang Teacher Assistant Platform）是一款专为教育工作者打造的生产力工具。项目深度结合数字媒体技术专业教学需求，通过 Vue 3 与现代 AI 技术栈，将传统繁琐的备课、出卷、课件制作流程转化为高度自动化的数字化工作流。
+
+## 行业背景与核心价值
+
+在数字化教学改革背景下，教师面临着教学内容更新快、教研压力大等挑战。本项目通过对智能化工作流的整合与结构化数据处理，实现了从教案构思到多格式文件（Word, PPT, PDF）输出的全链路闭环，旨在为职业教育及企业内训提供高性能的辅助方案。
+
 ## 在线体验
 
 项目链接： [https://www.ytecn.com/teacher/](https://www.ytecn.com/teacher/)
 
-## 🌟 核心功能
+## 核心功能与技术实现
 
-- **智能教案生成 (AI Lesson Planning)**
-  - 基于 AI 快速生成结构化教案，涵盖教学目标、重难点、教学过程等完整环节。
-  - 支持从幼儿园到研究生不同教育阶段的定制化生成，满足多样化教学需求。
-  - 提供所见即所得的富文本编辑器，支持对生成内容的二次修改与优化。
-  - **一键导出**：支持将教案一键导出为标准 Word (.docx) 格式，保留排版，方便打印与分享。
+### 1. 结构化教案生成系统 (AI Lesson Planning)
 
-- **智能 PPT 生成/编辑器 (Smart PPT Editor)**
-  - **AI 一键生成**：根据课程名称、章节和教学大纲，自动生成包含封面、大纲、内容页和演讲备注的完整 PPT 结构。
-  - **PPTX 导出**：支持将制作好的课件导出为标准 PowerPoint (.pptx) 文件，直接用于课堂演示。
+利用提示词工程（Prompt Engineering）引导 AI 生成符合教育逻辑的结构化内容：
 
-- **专业试卷编辑器 (Exam Editor)**
-  - 提供直观的在线试卷编辑界面，支持多种题型的灵活创建与管理。
-  - 实时预览试卷效果，所见即所得。
-  - **PDF 导出**：支持将试卷生成并导出为高质量 PDF 文件，直接用于考试分发。
+- 深度覆盖：预设教学目标、学情分析、重难点突破及教学反思模块。
+- 专业定制：内置针对教育场景优化的提示词模板，生成更加专业的教学内容。
+- 文档引擎：基于 docx 与 docxtemplater 实现 Office Open XML 协议的无损导出。
 
-- **AI 智能助手 (AI Assistant)**
-  - 内置强大的 AI 聊天功能，随时辅助解答教学过程中的疑难问题。
-  - 支持对教学内容进行润色、扩充和优化，提升教学质量。
-  - 根据教学上下文进行针对性互动，成为您的贴身教学顾问。
+### 2. 智能幻灯片生成模块 (Smart PPT Editor)
 
-- **用户系统与服务 (User & Services)**
-  - **个性化设置**：支持配置 AI 模型参数、API 密钥等，打造专属的教学辅助环境。
-  - **数据持久化**：使用本地存储技术自动保存您的草稿与配置，防止数据丢失。
+解决了从教学大纲到视觉演示的转换问题：
 
-## 🛠 技术栈
+- 智能解析：利用大模型提取教学大纲关键信息，自动规划演示结构。
+- 标准化导出：集成 pptxgenjs 库，支持生成标准 .pptx 文件，确保多端演示兼容性。
 
-- **前端框架**：Vue 3
-- **构建工具**：Vite
-- **状态管理**：Pinia
-- **路由管理**：Vue Router
-- **文档处理**：docx, docxtemplater, jspdf, html2canvas, pptxgenjs
-- **存储与工具**：localforage, file-saver, axios
+### 3. 专业测评构建引擎 (Exam Editor)
 
-## 🚀 快速开始
+针对程序设计基础等课程的评价需求，优化了题目管理逻辑：
+
+- 全题型支持：涵盖选择题、判断题、代码填空及综合应用题。
+- 高清排版：利用 jspdf 与 html2canvas 组合技术，支持生成高质量 PDF 试卷。
+
+### 4. 智能化教学助手 (AI Assistant)
+
+- 上下文感知：支持读取当前编辑的内容（如大纲或PPT），提供针对性的润色与建议。
+- 灵活配置：支持用户自定义 API Key 及切换不同版本的模型（如 Qwen-Turbo/Plus）。
+
+## 技术架构方案
+
+| 维度     | 技术栈实现       | 说明                                          |
+| :------- | :--------------- | :-------------------------------------------- |
+| 核心框架 | Vue 3.x + Vite   | 确保高性能的响应式体验与极速构建              |
+| 状态流转 | Pinia            | 实现教案与试卷数据在不同模块间的无缝共享      |
+| 离线能力 | localforage      | 基于 IndexedDB 的本地持久化，保障教案数据安全 |
+| 文档处理 | docx / pptxgenjs | 专业的 Office 文档底层协议处理方案            |
+
+---
+
+## 快速开始
 
 ### 1. 下载项目
 
@@ -82,5 +93,9 @@ npm run build
 - `public`: 公共资源文件
 
 ---
+
+## 许可证
+
+本项目采用 MIT 许可证，欢迎教育同行进行二次开发与教学实践。
 
 © 2025-2026 豫唐
