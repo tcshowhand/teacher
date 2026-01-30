@@ -1,4 +1,4 @@
-# 豫唐教师辅助教学平台：数字媒体技术专业级教研效率工具
+# 豫唐教师辅助教学平台：智能化教研效率工具
 
 [![GitHub Stars](https://img.shields.io/github/stars/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/network/members)
@@ -8,7 +8,7 @@
 
 ## 项目定位
 
-豫唐教师辅助教学平台（Yutang Teacher Assistant Platform）是一款专为教育工作者打造的生产力工具。项目深度结合数字媒体技术专业教学需求，通过 Vue 3 与现代 AI 技术栈，将传统繁琐的备课、出卷、课件制作流程转化为高度自动化的数字化工作流。
+豫唐教师辅助教学平台（Yutang Teacher Assistant Platform）是一款专为教育工作者打造的生产力工具。项目深度结合职业教育教学需求，通过 Vue 3 与现代 AI 技术栈，将传统繁琐的备课、出卷、课件制作流程转化为高度自动化的数字化工作流。
 
 ## 行业背景与核心价值
 
@@ -37,7 +37,7 @@
 
 ### 3. 专业测评构建引擎 (Exam Editor)
 
-针对程序设计基础等课程的评价需求，优化了题目管理逻辑：
+针对不同学科课程的评价需求，优化了题目管理逻辑：
 
 - 全题型支持：涵盖选择题、判断题、代码填空及综合应用题。
 - 高清排版：利用 jspdf 与 html2canvas 组合技术，支持生成高质量 PDF 试卷。
