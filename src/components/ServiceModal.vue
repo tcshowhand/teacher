@@ -5,16 +5,12 @@ defineEmits(['close'])
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content service-modal">
-      <h3>💎 定制教案模型</h3>
+      <h3>💎 友情赞助</h3>
       <div class="service-content">
-        <p>我们可以为您定制专属的教案模型！</p>
         <p class="price">
-          <span class="original-price">原价3000元</span>
-          <br>
-          <span class="promo-text">限时优惠：</span>
-          <span class="highlight">300元/个</span>
+          <span class="highlight"><img src="/img/pay.jpg" alt="" srcset=""></span>
         </p>
-        <p class="contact">联系我们添加您的专属模板。</p>
+        <p class="contact">赞助金额超过300元的用户，可免费定制一个专属教案模板！</p>
         <p class="contact">微信：cnatking</p>
       </div>
       <div class="modal-actions">
@@ -25,6 +21,10 @@ defineEmits(['close'])
 </template>
 
 <style scoped>
+.price img{
+  width: 260px;
+  max-width: 100%;
+}
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

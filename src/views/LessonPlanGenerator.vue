@@ -17,6 +17,7 @@ const courseName = ref('')
 const weeklySessions = ref(4)
 const sessionsPerPlan = ref(2)
 const totalWeeks = ref(18)
+const outlineContent = ref('') // 新增大纲内容ref
 const isGenerating = ref(false)
 const generatedChapters = ref([])
 const showSettings = ref(false)
@@ -41,7 +42,8 @@ onMounted(() => {
       if (parsed.weeklySessions) weeklySessions.value = parsed.weeklySessions
       if (parsed.sessionsPerPlan) sessionsPerPlan.value = parsed.sessionsPerPlan
       if (parsed.totalWeeks) totalWeeks.value = parsed.totalWeeks
-      
+      if (parsed.outlineContent) outlineContent.value = parsed.outlineContent // 加载保存的大纲内容
+
       // Migration logic for old data format
       if (parsed.generatedChapters && Array.isArray(parsed.generatedChapters)) {
         generatedChapters.value = parsed.generatedChapters.map(chapter => ({
@@ -57,13 +59,14 @@ onMounted(() => {
   }
 })
 
-watch([courseName, weeklySessions, sessionsPerPlan, totalWeeks, generatedChapters], () => {
+watch([courseName, weeklySessions, sessionsPerPlan, totalWeeks, outlineContent, generatedChapters], () => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       courseName: courseName.value,
       weeklySessions: weeklySessions.value,
       sessionsPerPlan: sessionsPerPlan.value,
       totalWeeks: totalWeeks.value,
+      outlineContent: outlineContent.value, // 保存大纲内容
       generatedChapters: generatedChapters.value
     }))
   } catch (e) {
@@ -83,12 +86,20 @@ const handleGenerate = async () => {
   const totalSessions = weeklySessions.value * totalWeeks.value
   const estimatedPlans = Math.ceil(totalSessions / sessionsPerPlan.value)
 
-  const prompt = `请为课程《${courseName.value}》设计一个学期的教学进度大纲。
+  // 构建提示词，包含大纲内容（如果提供了）
+  let prompt = `请为课程《${courseName.value}》设计一个学期的教学进度大纲。
   适用学段：${settings.educationLevel} 。
   课程安排：共 ${totalWeeks.value} 周，每周 ${weeklySessions.value} 课时，共计 ${totalSessions} 课时。
-  备课要求：每 ${sessionsPerPlan.value} 节课写一份教案，预计需要生成 ${estimatedPlans} 份教案。
-  请根据以上信息，规划出一系列的教案主题。
-  请严格以 JSON 数组格式返回，不要包含 markdown 标记，不要包含其他文字。
+  备课要求：每 ${sessionsPerPlan.value} 节课写一份教案，预计需要生成 ${estimatedPlans} 份教案。`
+
+  // 如果用户提供了大纲，则添加到提示词中
+  if (outlineContent.value.trim()) {
+    prompt += `\n\n用户提供的课程大纲参考：\n${outlineContent.value.trim()}\n\n请根据以上大纲和课程信息，严格按照周次顺序规划出一系列的教案主题。特别注意：第1个教案必须对应第1周内容，第2个教案必须对应第2周内容，以此类推。`
+  } else {
+    prompt += `\n请根据以上信息，规划出一系列的教案主题。`
+  }
+
+  prompt += `\n请严格以 JSON 数组格式返回，不要包含其他文字。
   请注意：mainTitle 字段只包含教案的主题名称，不要包含"第一份教案"或"第1课"等编号文字。
   格式如下：
   [
@@ -112,15 +123,15 @@ const handleGenerate = async () => {
       // Attempt to parse JSON
       try {
         const cleanText = fullText.replace(/```json/g, '').replace(/```/g, '').trim()
-        
+
         // Check for specific error message from worker/API
         if (cleanText.includes('请先配置 API Key') || cleanText.includes('API Key not configured')) {
-            showApiKeyAlertModal.value = true
-            return
+          showApiKeyAlertModal.value = true
+          return
         }
 
         const parsed = JSON.parse(cleanText)
-        
+
         // Ensure robust structure even if AI returns old keys
         generatedChapters.value = parsed.map(item => ({
           id: item.id,
@@ -142,15 +153,15 @@ const goToExam = (chapter, index, type) => {
   let path = '/lesson-plan'
   if (type === 'exam') path = '/exam'
   if (type === 'ppt') path = '/ppt'
-  router.push({ 
-    path: path, 
-    query: { 
+  router.push({
+    path: path,
+    query: {
       // Minimal params
       courseName: courseName.value,
       chapterId: chapter.id,
       lessonNumber: index + 1,
       type: type
-    } 
+    }
   })
 }
 
@@ -161,11 +172,11 @@ const handleAIUpdate = (newChapters) => {
 
   // Robustness: If AI returned an object { chapters: [...] }, extract the array
   if (!Array.isArray(newChapters) && typeof newChapters === 'object') {
-     const values = Object.values(newChapters)
-     const foundArray = values.find(v => Array.isArray(v))
-     if (foundArray) {
-       chaptersToUpdate = foundArray
-     }
+    const values = Object.values(newChapters)
+    const foundArray = values.find(v => Array.isArray(v))
+    if (foundArray) {
+      chaptersToUpdate = foundArray
+    }
   }
 
   if (Array.isArray(chaptersToUpdate)) {
@@ -175,13 +186,13 @@ const handleAIUpdate = (newChapters) => {
       const title = item.mainTitle || item.title || item.chapterTitle || item.name || item.caption || `第 ${index + 1} 章`
       // Try to find summary
       const summary = item.summary || item.desc || item.description || item.content || ''
-      
+
       return {
         id: item.id || Date.now() + Math.random(),
         mainTitle: title,
         subTitle: item.subTitle || item.section || '',
         summary: summary,
-        teachingMode: item.teachingMode || '理论课' 
+        teachingMode: item.teachingMode || '理论课'
       }
     })
     // Optional: Notify success via UI if needed, but the change should be visible
@@ -197,12 +208,15 @@ const handleAIUpdate = (newChapters) => {
     <div class="toolbar-top">
       <div class="user-info" v-if="userStore.isLoggedIn">
         <img :src="userStore.userInfo.Avatar" class="user-avatar" v-if="userStore.userInfo.Avatar" />
-        <span class="user-hello">{{ userStore.userInfo.StaticName || userStore.userInfo.Name || userStore.userInfo.username }}</span>
+        <span class="user-hello">{{ userStore.userInfo.StaticName || userStore.userInfo.Name ||
+          userStore.userInfo.username }}</span>
         <button class="settings-btn logout-btn" @click="userStore.logout()">退出</button>
       </div>
-      <button v-else class="settings-btn" @click="showLoginModal = true" style="background: #e8f8f5; border-color: #1abc9c; color: #16a085;">🔐 登录</button>
-      
-      <button class="settings-btn" @click="showServiceModal = true" style="background: #fff8e1; border-color: #f1c40f; color: #f39c12; margin-right: 10px;">➕ 定制模型</button>
+      <button v-else class="settings-btn" @click="showLoginModal = true"
+        style="background: #e8f8f5; border-color: #1abc9c; color: #16a085;">🔐 登录</button>
+
+      <button class="settings-btn" @click="showServiceModal = true"
+        style="background: #fff8e1; border-color: #f1c40f; color: #f39c12; margin-right: 10px;">➕ 友情赞助</button>
       <button class="settings-btn" @click="showSettings = true">⚙️ 设置 </button>
     </div>
 
@@ -212,25 +226,41 @@ const handleAIUpdate = (newChapters) => {
     </div>
 
     <div class="input-section">
-      <div class="input-group">
-        <label>课程名称</label>
-        <input v-model="courseName" placeholder="例如：新媒体运营" @keyup.enter="handleGenerate" />
+      <div class="basic-inputs">
+        <div class="input-group">
+          <label>课程名称</label>
+          <input v-model="courseName" placeholder="例如：新媒体运营" @keyup.enter="handleGenerate" />
+        </div>
+        <div class="input-group">
+          <label>共多少周</label>
+          <input type="number" v-model="totalWeeks" min="1" max="30" class="number-input" />
+        </div>
+        <div class="input-group">
+          <label>每周课时</label>
+          <input type="number" v-model="weeklySessions" min="1" max="20" class="number-input" />
+        </div>
+        <div class="input-group">
+          <label>几课时写一个教案</label>
+          <input type="number" v-model="sessionsPerPlan" min="1" max="10" class="number-input" />
+        </div>
       </div>
-      <div class="input-group">
-        <label>共多少周</label>
-        <input type="number" v-model="totalWeeks" min="1" max="30" class="number-input" />
+
+      <div class="outline-inputs">
+        <div class="input-group">
+          <div class="outline-container">
+            <label>课程大纲（可选）</label>
+            <textarea v-model="outlineContent" placeholder="可在此输入课程大纲，AI将根据大纲生成教案。例如：第一周：课程介绍；第二周：基础知识..."
+              class="outline-input" />
+          </div>
+        </div>
+        
       </div>
-      <div class="input-group">
-        <label>每周课时</label>
-        <input type="number" v-model="weeklySessions" min="1" max="20" class="number-input" />
+
+      <div class="generate-inputs">
+        <button class="generate-btn" @click="handleGenerate" :disabled="isGenerating">
+          {{ isGenerating ? '✨ 生成中...' : '✨ 开始生成' }}
+        </button>
       </div>
-      <div class="input-group">
-        <label>几课时写一个教案</label>
-        <input type="number" v-model="sessionsPerPlan" min="1" max="10" class="number-input" />
-      </div>
-      <button class="generate-btn" @click="handleGenerate" :disabled="isGenerating">
-        {{ isGenerating ? '✨ 生成中...' : '✨ 开始生成' }}
-      </button>
     </div>
 
     <div class="results-section" v-if="generatedChapters.length > 0">
@@ -243,7 +273,7 @@ const handleAIUpdate = (newChapters) => {
             <input v-model="chapter.mainTitle" class="editable-title main-title" placeholder="大标题" />
             <!-- Subtitle -->
             <input v-model="chapter.subTitle" class="editable-title sub-title" placeholder="小标题" />
-            
+
             <!-- Teaching Mode Select -->
             <select v-model="chapter.teachingMode" class="mode-select">
               <option value="理论课">理论课</option>
@@ -256,13 +286,13 @@ const handleAIUpdate = (newChapters) => {
           </div>
           <div class="actions">
             <button class="action-btn plan-btn" @click="goToExam(chapter, index, 'lesson_plan')">
-              📘 教案编辑
+              教案编辑
             </button>
             <button class="action-btn exam-btn" @click="goToExam(chapter, index, 'exam')">
-              📝 试题编辑
+              试题编辑
             </button>
             <button class="action-btn ppt-btn" @click="goToExam(chapter, index, 'ppt')">
-              📽️ 生成 PPT
+              生成 PPT
             </button>
           </div>
         </div>
@@ -282,10 +312,7 @@ const handleAIUpdate = (newChapters) => {
     </div>
 
     <!-- AI Chat Assistant -->
-    <AIChatAssistant 
-      v-model="showAIChat" 
-      :currentContent="generatedChapters"
-      :systemContext="`您是课程大纲规划助手。
+    <AIChatAssistant v-model="showAIChat" :currentContent="generatedChapters" :systemContext="`您是课程大纲规划助手。
 当前课程信息：
 - 课程名称：${courseName}
 - 适用学段：${settings.educationLevel}
@@ -306,23 +333,16 @@ const handleAIUpdate = (newChapters) => {
 用户指令示例：'第18周是考试周' -> 请代入公式计算，找到对应的列表项，将其标题修改为'期末考试'，同时将副标题改为'期末考核'，摘要改为'进行本学期的期末考试及测评'。
 请根据用户的指令**修改**特定章节的**标题、副标题、摘要和授课形式**。
 **重要：当修改课程主题时，务必同时更新副标题和摘要，确保内容一致性，不要保留旧的内容。**
-**重要：严禁增加或删除章节，只修改现有内容。**`"
-      @update-content="handleAIUpdate" 
-    />
+**重要：严禁增加或删除章节，只修改现有内容。**`" @update-content="handleAIUpdate" />
 
     <!-- Floating AI Chat Button -->
     <button class="ai-chat-fab" @click="showAIChat = !showAIChat" title="AI 助手">
       🤖 大纲助手
     </button>
 
-    <SettingsModal 
-      v-if="showSettings" 
-      :currentModelId="currentModelId"
-      :show-model-selector="true"
-      @change-model="handleModelChange"
-      @close="showSettings = false" 
-    />
-    
+    <SettingsModal v-if="showSettings" :currentModelId="currentModelId" :show-model-selector="true"
+      @change-model="handleModelChange" @close="showSettings = false" />
+
     <ServiceModal v-if="showServiceModal" @close="showServiceModal = false" />
     <LoginModal v-if="showLoginModal" @close="showLoginModal = false" />
   </div>
@@ -330,7 +350,6 @@ const handleAIUpdate = (newChapters) => {
 </template>
 
 <style scoped>
-
 .generator-container {
   max-width: 1000px;
   margin: 0 auto;
@@ -341,7 +360,7 @@ const handleAIUpdate = (newChapters) => {
   color: #2c3e50;
   /* Paper grid background */
   background-color: #fdfbf7;
-  background-image: 
+  background-image:
     linear-gradient(#e1e8ed 1px, transparent 1px),
     linear-gradient(90deg, #e1e8ed 1px, transparent 1px);
   background-size: 20px 20px;
@@ -349,13 +368,27 @@ const handleAIUpdate = (newChapters) => {
 
 /* Animations */
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero-section {
@@ -368,7 +401,7 @@ h1 {
   font-weight: bold;
   color: #2c3e50;
   margin-bottom: 10px;
-  text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
 }
 
 .subtitle {
@@ -395,7 +428,7 @@ h1 {
   padding: 5px 15px;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
   border: 2px solid #2c3e50;
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
   margin-right: 10px;
 }
 
@@ -428,19 +461,20 @@ h1 {
   background: white;
   border: 2px solid #2c3e50;
   padding: 8px 16px;
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* Hand-drawn shape */
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  /* Hand-drawn shape */
   cursor: pointer;
   font-size: 1em;
   color: #2c3e50;
   font-family: inherit;
   font-weight: bold;
   transition: all 0.2s;
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 .settings-btn:hover {
   transform: scale(1.05) rotate(2deg);
-  box-shadow: 5px 5px 0 rgba(0,0,0,0.15);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.15);
 }
 
 /* Input Section */
@@ -448,17 +482,10 @@ h1 {
   background: white;
   padding: 40px;
   border-radius: 5px;
-  /* Sketchy border */
   border: 2px solid #2c3e50;
   box-shadow: 8px 8px 0 rgba(44, 62, 80, 0.2);
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  gap: 30px;
-  margin-bottom: 60px;
-  flex-wrap: wrap;
-  animation: fadeInUp 0.8s ease-out 0.2s backwards;
-  position: relative;
+  display: grid;
+  gap: 20px;
 }
 
 /* Tape effect (pure css decoration) */
@@ -471,15 +498,41 @@ h1 {
   width: 120px;
   height: 35px;
   background-color: rgba(255, 255, 255, 0.6);
-  border-left: 2px dashed rgba(0,0,0,0.1);
-  border-right: 2px dashed rgba(0,0,0,0.1);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-left: 2px dashed rgba(0, 0, 0, 0.1);
+  border-right: 2px dashed rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   z-index: 1;
+}
+
+/* 基础输入框容器 */
+.basic-inputs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+@media (max-width: 768px) {
+  .basic-inputs {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+.generate-inputs {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 20px;
+}
+
+/* 大纲输入框容器 */
+.outline-inputs {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 20px;
 }
 
 .input-group {
   text-align: left;
 }
+
 
 label {
   display: block;
@@ -490,11 +543,12 @@ label {
 }
 
 input {
-  padding: 10px 10px;
+  padding: 5px 0;
   font-size: 1.2em;
   font-family: 'Architects Daughter', cursive;
   border: none;
-  border-bottom: 3px solid #2c3e50; /* Notebook line style */
+  border-bottom: 3px solid #2c3e50;
+  /* Notebook line style */
   background: transparent;
   outline: none;
   transition: all 0.3s;
@@ -503,23 +557,36 @@ input {
   border-radius: 0;
 }
 
-.hand-drawn-select {
-  padding: 10px 10px;
+/* 新增的大纲输入框样式 */
+.outline-input {
   font-size: 1.2em;
   font-family: 'Architects Daughter', cursive;
   border: none;
   border-bottom: 3px solid #2c3e50;
   background: transparent;
   outline: none;
-  width: 150px;
+  transition: all 0.3s;
   color: #2c3e50;
   border-radius: 0;
-  cursor: pointer;
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5em;
+  width: 100%;
+}
+
+.outline-input:focus {
+  border-bottom-color: #3498db;
+  color: #3498db;
+
+}
+
+.outline-input-group {
+  grid-column: span 2;
+  width: 100%;
 }
 
 .number-input {
   width: 100px;
-  text-align: center;
 }
 
 input:focus {
@@ -540,7 +607,7 @@ input:focus {
   font-weight: bold;
   font-family: inherit;
   box-shadow: 4px 4px 0 #2c3e50;
-  display: flex;
+
   align-items: center;
   gap: 8px;
 }
@@ -593,16 +660,18 @@ input:focus {
   flex-direction: column;
   justify-content: space-between;
   border: 1px solid #ccc;
-  box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1);
   position: relative;
   /* Post-it / Index card feel */
   background: #fff;
-  border-top: 10px solid #a2d5f2; /* Default tape color */
+  border-top: 10px solid #a2d5f2;
+  /* Default tape color */
   animation: fadeInUp 0.6s ease-out backwards;
 }
 
 .chapter-card:nth-child(even) {
-  border-top-color: #ffccbc; /* Alternate color */
+  border-top-color: #ffccbc;
+  /* Alternate color */
   transform: rotate(1deg);
 }
 
@@ -613,7 +682,7 @@ input:focus {
 .chapter-card:hover {
   transform: rotate(0) scale(1.02);
   z-index: 10;
-  box-shadow: 10px 15px 25px rgba(0,0,0,0.15);
+  box-shadow: 10px 15px 25px rgba(0, 0, 0, 0.15);
 }
 
 .chapter-badge {
@@ -632,7 +701,7 @@ input:focus {
   font-weight: bold;
   font-size: 1.2em;
   transform: rotate(15deg);
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
   z-index: 2;
 }
 
@@ -669,9 +738,11 @@ input:focus {
 .editable-summary {
   width: 100%;
   border: none;
-  background: transparent; /* Notebook styling */
+  background: transparent;
+  /* Notebook styling */
   background-image: linear-gradient(#eee 1px, transparent 1px);
-  background-size: 100% 1.5em; /* Match line height */
+  background-size: 100% 1.5em;
+  /* Match line height */
   line-height: 1.5em;
   font-family: inherit;
   font-size: 1em;
@@ -696,13 +767,15 @@ input:focus {
   margin-top: 5px;
 }
 
-.mode-select:focus, .mode-select:hover {
+.mode-select:focus,
+.mode-select:hover {
   border-color: #3498db;
   border-style: solid;
   background: rgba(52, 152, 219, 0.05);
 }
 
-.editable-title:hover, .editable-title:focus {
+.editable-title:hover,
+.editable-title:focus {
   border-bottom-color: #3498db;
   border-bottom-style: solid;
   background: rgba(52, 152, 219, 0.05);
@@ -729,7 +802,7 @@ input:focus {
   gap: 5px;
   font-family: inherit;
   background: white;
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
 }
 
 .plan-btn {
@@ -739,7 +812,7 @@ input:focus {
 .plan-btn:hover {
   background: #e1f5fe;
   transform: translateY(-2px);
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
 }
 
 .exam-btn {
@@ -749,26 +822,40 @@ input:focus {
 .exam-btn:hover {
   background: #fff3e0;
   transform: translateY(-2px);
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
 }
 
 /* Stagger animation for cards */
-.chapter-card:nth-child(1) { animation-delay: 0.1s; }
-.chapter-card:nth-child(2) { animation-delay: 0.2s; }
-.chapter-card:nth-child(3) { animation-delay: 0.3s; }
-.chapter-card:nth-child(4) { animation-delay: 0.4s; }
-.chapter-card:nth-child(5) { animation-delay: 0.5s; }
+.chapter-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.chapter-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.chapter-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.chapter-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.chapter-card:nth-child(5) {
+  animation-delay: 0.5s;
+}
 
 @media (max-width: 768px) {
   .generator-container {
     padding: 40px 15px;
   }
-  
+
   h1 {
     font-size: 2em;
     margin-top: 10px;
   }
-  
+
   .subtitle {
     font-size: 1em;
   }
@@ -778,33 +865,23 @@ input:focus {
     top: 10px;
     right: 10px;
   }
-  
+
   .input-section {
     padding: 25px 15px;
     flex-direction: column;
     align-items: stretch;
     gap: 20px;
   }
-  
-  .input-group {
-    width: 100%;
-  }
-  
-  input {
-    width: 100%;
-  }
-  
-  .number-input {
-    width: 100%;
-    text-align: left;
-  }
-  
+
+
+
   .chapters-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .chapter-card {
-    transform: none !important; /* Disable rotation on mobile for cleaner look */
+    transform: none !important;
+    /* Disable rotation on mobile for cleaner look */
     margin-bottom: 20px;
   }
 }
@@ -812,8 +889,11 @@ input:focus {
 /* Modal Styles Global (Copied from Editors) */
 .modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -822,15 +902,18 @@ input:focus {
 }
 
 .modal-content {
-  background: #fdfbf7; /* paper-bg */
+  background: #fdfbf7;
+  /* paper-bg */
   padding: 30px;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  border: 3px solid #2c3e50; /* text-color */
-  box-shadow: 10px 10px 0 rgba(0,0,0,0.2);
+  border: 3px solid #2c3e50;
+  /* text-color */
+  box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.2);
   width: 90%;
   max-width: 400px;
   text-align: center;
-  font-family: 'Architects Daughter', cursive; /* handwriting-font */
+  font-family: 'Architects Daughter', cursive;
+  /* handwriting-font */
 }
 
 .modal-content h3 {
@@ -883,7 +966,7 @@ input:focus {
   padding: 12px 24px;
   font-size: 1.1em;
   font-weight: bold;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   z-index: 900;
   transition: transform 0.2s;
@@ -903,6 +986,6 @@ input:focus {
 .ppt-btn:hover {
   background: #f3e5f5;
   transform: translateY(-2px);
-  box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
 }
 </style>

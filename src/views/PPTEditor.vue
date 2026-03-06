@@ -24,6 +24,7 @@ const showSaveModal = ref(false)
 const showLoadModal = ref(false)
 const showApiKeyAlertModal = ref(false)
 const showAIChat = ref(false)
+const showAIGenConfirmModal = ref(false)
 const savedTemplates = ref([])
 const templateName = ref('')
 const TEMPLATES_KEY = 'ppt_templates_v1'
@@ -124,32 +125,84 @@ const handleModelChange = (id) => {
 const generatePPT = async () => {
   if (isGenerating.value) return
   if (pptData.value && pptData.value.slides.length > 1) {
-    if (!confirm('当前已有内容，AI 生成将覆盖。继续吗？')) return
+    // 显示自定义确认弹窗而不是原生confirm
+    showAIGenConfirmModal.value = true
+    return
   }
+  
+  // 如果没有现有内容，直接生成
+  await confirmGeneratePPT()
+}
 
+// 新增确认生成函数
+const confirmGeneratePPT = async () => {
+  showAIGenConfirmModal.value = false
   isGenerating.value = true
   const title = pptData.value?.title || "未命名演示文稿"
   const slideCount = 8
 
-  const { courseName } = route.query
+  const { courseName, chapterId } = route.query
   const cName = courseName || '未命名课程'
   
   // Construct context from current pptData (which might be edited by user or loaded from storage)
   const currentContext = `章节主标题：${pptData.value.title}\n章节副标题：${pptData.value.subtitle || '无'}\n授课形式：${pptData.value.teachingMode || '理论课'}\n内容摘要：${pptData.value.summary || '无'}`
 
+  // 尝试加载完整的教案数据
+  let lessonPlanContext = ''
+  if (courseName && chapterId) {
+    try {
+      const currentModelIdForStorage = localStorage.getItem('last_active_model_id') || DEFAULT_MODEL_ID
+      const lessonPlanDocId = `${courseName}_ch${chapterId}`
+      const lessonPlanStorageKey = `exam_data_v1_plan_${currentModelIdForStorage}_${lessonPlanDocId}`
+      const lessonPlanData = await localforage.getItem(lessonPlanStorageKey)
+      
+      if (lessonPlanData) {
+        // 构建完整的教案上下文
+        lessonPlanContext = `
+【完整教案信息】
+- 授课课题：${lessonPlanData['授课课题'] || '无'}
+- 子章节：${lessonPlanData['子章节'] || '无'}
+- 备课摘要/设计意图：${lessonPlanData['摘要'] || '无'}
+- 知识与技能：${lessonPlanData['知识与技能'] || '无'}
+- 过程与方法：${lessonPlanData['过程与方法'] || '无'}
+- 情感、态度、价值观：${lessonPlanData['情感、态度、价值观'] || '无'}
+- 教学重点：${lessonPlanData['教学重点'] || '无'}
+- 教学难点：${lessonPlanData['教学难点'] || '无'}
+- 教学方法：${lessonPlanData['教学方法'] || '无'}
+- 媒介：${lessonPlanData['媒介'] || '无'}
+- 学习资料：${lessonPlanData['学习资料'] || '无'}
+- 课后小结：${lessonPlanData['课后小结'] || '无'}
+`
+        // 如果有教学过程，也添加进去
+        if (lessonPlanData['教学过程'] && Array.isArray(lessonPlanData['教学过程'])) {
+          let teachingProcess = '\n- 教学过程：\n'
+          lessonPlanData['教学过程'].forEach((process, index) => {
+            if (Array.isArray(process) && process.length >= 2) {
+              teachingProcess += `  ${index + 1}. ${process[0]}: ${process[1]}\n`
+            }
+          })
+          lessonPlanContext += teachingProcess
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load lesson plan data for PPT generation', e)
+    }
+  }
+
   let prompt = `请为课程《${cName}》的当前章节生成一份 PPT 大纲内容。
   
   【当前章节信息】
   ${currentContext}
+  ${lessonPlanContext}
   
   【生成要求】
   1. 生成约 ${slideCount} 页幻灯片。
-  2. 请根据上述章节信息（特别是摘要和授课形式）来规划每一页的内容。
+  2. 请根据上述章节信息（特别是摘要、教学重点、教学难点、教学过程等完整教案信息）来规划每一页的内容。
   3. 第一页必须是封面（Cover），包含主标题和副标题。
   4. 最后一页是结束页。
   5. 中间页包含具体教学/演讲内容，每页包含标题(title)和内容要点列表(content)，以及演讲备注(note)。
-  6. 严格以 JSON 格式返回，不要markdown标记。
-  
+  6. 严格以 JSON 格式返回，不要使用\`\`\`
+
   JSON格式示例：
   {
     "title": "主标题",
@@ -170,12 +223,11 @@ const generatePPT = async () => {
             showApiKeyAlertModal.value = true
             return
         }
-        const newData = JSON.parse(clean)
-        // Normalize
-        if (!newData.slides) newData.slides = []
-        pptData.value = newData
+        const parsed = JSON.parse(clean)
+        pptData.value = parsed
       } catch (e) {
-        alert('生成失败，格式错误')
+        console.error('Failed to parse AI PPT response', e)
+        alert('生成失败，请重试。')
       }
     }
   })
@@ -296,7 +348,7 @@ const removeSlide = (index) => {
 
     <div class="ai-actions">
         <button class="ai-gen-btn" @click="generatePPT" :disabled="isGenerating">
-            {{ isGenerating ? '✨ PPT 生成中...' : '✨ AI 一键生成 PPT' }}
+            {{ isGenerating ? 'PPT 生成中...' : 'AI 一键生成 PPT' }}
         </button>
     </div>
 
@@ -327,6 +379,18 @@ const removeSlide = (index) => {
     </div>
     
     <div v-else class="loading">Loading...</div>
+
+    <!-- AI Generation Confirmation Modal -->
+    <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
+      <div class="modal-content">
+        <h3>✨ AI 一键生成</h3>
+        <p>AI 将根据当前的章节信息和完整教案自动生成PPT。<br><b>注意：此操作可能会覆盖您已手动输入的内容。</b></p>
+        <div class="modal-actions">
+          <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
+          <button class="modal-btn confirm" @click="confirmGeneratePPT">✨ 开始生成</button>
+        </div>
+      </div>
+    </div>
 
     <!-- AI Chat -->
     <AIChatAssistant 
@@ -364,6 +428,18 @@ const removeSlide = (index) => {
             <h3>⚠️ 请配置 API Key</h3>
             <div class="modal-actions">
                 <button class="modal-btn confirm" @click="showApiKeyAlertModal = false; showSettingsModal = true">去配置</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Generate Confirm Modal -->
+    <div class="modal-overlay" v-if="showAIGenConfirmModal">
+        <div class="modal-content">
+            <h3>⚠️ 确认生成PPT</h3>
+            <p style="color: #666; margin: 15px 0;">当前已有内容，AI 生成将覆盖现有内容。继续吗？</p>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
+                <button class="modal-btn confirm" @click="confirmGeneratePPT">继续生成</button>
             </div>
         </div>
     </div>

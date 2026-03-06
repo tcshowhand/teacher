@@ -59,7 +59,7 @@ const handleFileImport = (event) => {
 
       <div class="separator"></div>
 
-      <button @click="showServiceModal = true" style="background: #fff8e1; border-color: #f1c40f; color: #f39c12;">➕ 定制模型</button>
+      <button @click="showServiceModal = true" style="background: #fff8e1; border-color: #f1c40f; color: #f39c12;">➕ 友情赞助</button>
       <button @click="$emit('open-settings')">⚙️ 设置</button>
     </div>
     

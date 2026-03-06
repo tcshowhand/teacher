@@ -31,8 +31,9 @@ const showSaveModal = ref(false)
 const showLoadModal = ref(false)
 const showDeleteConfirmModal = ref(false)
 const showResetConfirmModal = ref(false)
-const showLoadConfirmModal = ref(false)
-const showSettingsModal = ref(false)
+
+// 添加AI生成确认弹窗状态
+const showAIGenConfirmModal = ref(false)
 
 const pendingDeleteTemplateIndex = ref(-1)
 const pendingLoadTemplate = ref(null)
@@ -360,25 +361,29 @@ const confirmReset = async () => {
         await localforage.removeItem(key)
     }
     
-    if (currentDocId.value === 'default_doc') {
-        const response = await fetch('/exam_data.json')
-        examData.value = await response.json()
-    } else {
-        examData.value = createEmptyExam(currentDocId.value)
-    }
+    examData.value = createEmptyExamData(currentDocId.value || '示范课程 - 示范章节')
   } catch (e) {
     console.error('Failed to reset', e)
   }
   showResetConfirmModal.value = false
 }
 
-
+// 修改generateExamPaper函数，使用自定义弹窗
 const generateExamPaper = async () => {
   if (isGeneratingExam.value) return
   if (examData.value && examData.value.problems && examData.value.problems.length > 0) {
-      if (!confirm('当前已有试题，AI 生成将覆盖现有试题。确定要继续吗？')) return
+    // 显示自定义确认弹窗而不是原生confirm
+    showAIGenConfirmModal.value = true
+    return
   }
+  
+  // 如果没有现有试题，直接生成
+  await confirmGenerateExamPaper()
+}
 
+// 新增确认生成函数
+const confirmGenerateExamPaper = async () => {
+  showAIGenConfirmModal.value = false
   isGeneratingExam.value = true
   // Extract course title
   let title = "计算机相关课程"
@@ -391,7 +396,7 @@ const generateExamPaper = async () => {
   const questionCount = settings.examQuestionCount || 5
   const prompt = `请为课程"${title}"生成一份包含 ${questionCount} 道题目的试题数据。
   
-  请严格按照以下 JSON 格式返回，不要包含 markdown 标记代码块：
+  请严格按照以下 JSON 格式返回，不要包含代码块：
   {
     "title": "${title}",
     "info": ["姓名: _______________", "学号: _______________", "得分: ___________"],
@@ -473,7 +478,7 @@ const handleAIUpdate = (newData) => {
     
     <div class="ai-actions">
       <button class="ai-gen-btn" @click="generateExamPaper" :disabled="isGeneratingExam">
-        {{ isGeneratingExam ? '✨ AI 生成中...' : `✨ AI 一键生成试题 (${settings.examQuestionCount}题)` }}
+        {{ isGeneratingExam ? 'AI 生成中...' : `AI 一键生成试题 (${settings.examQuestionCount}题)` }}
       </button>
     </div>
 
@@ -584,6 +589,18 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
+    <!-- AI Generation Confirmation Modal -->
+    <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
+      <div class="modal-content">
+        <h3>AI 一键生成</h3>
+        <p>AI 将根据当前的课程信息自动生成试题。<br><b>注意：此操作可能会覆盖您已手动输入的内容。</b></p>
+        <div class="modal-actions">
+          <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
+          <button class="modal-btn confirm" @click="confirmGenerateExamPaper">✨ 开始生成</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Export Loading Overlay -->
     <div class="modal-overlay" v-if="isExporting" style="z-index: 3000; cursor: wait;">
       <div class="modal-content" style="max-width: 300px;">
@@ -638,28 +655,7 @@ const handleAIUpdate = (newData) => {
   margin-bottom: 20px;
 }
 
-.ai-gen-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 10px 25px;
-  font-size: 1.1em;
-  border-radius: 25px;
-  cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
-  font-weight: bold;
-}
 
-.ai-gen-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 8px rgba(0,0,0,0.2);
-}
-
-.ai-gen-btn:disabled {
-  background: #ccc;
-  cursor: wait;
-}
 
 
 .ai-actions {
@@ -668,26 +664,31 @@ const handleAIUpdate = (newData) => {
 }
 
 .ai-gen-btn {
-  background: linear-gradient(135deg, #fb8c00 0%, #ffa726 100%);
-  color: white;
-  border: none;
-  padding: 10px 25px;
-  font-size: 1.1em;
-  border-radius: 25px;
-  cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
-  font-weight: bold;
+    background: white;
+    color: #2c3e50;
+    border: 3px solid #2c3e50;
+    padding: 12px 30px;
+    font-size: 1.2em;
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 #2c3e50;
+    font-weight: bold;
+    font-family: inherit;
+    transition: all 0.2s;
 }
 
 .ai-gen-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #2c3e50;
+  background: #f3e5f5; /* Light purple tint for PPT context */
 }
 
 .ai-gen-btn:disabled {
-  background: #ccc;
-  cursor: wait;
+    background: #eee;
+    color: #999;
+    border-color: #999;
+    box-shadow: none;
+    cursor: wait;
 }
 
 .tag-plan {
@@ -883,6 +884,4 @@ const handleAIUpdate = (newData) => {
   from { transform: translateX(-20px) rotate(-10deg); }
   to { transform: translateX(20px) rotate(10deg); }
 }
-
-
 </style>

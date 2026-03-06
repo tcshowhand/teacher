@@ -645,7 +645,7 @@ const handleAIUpdate = (newData) => {
     <!-- AI Generation Confirmation Modal -->
     <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
-        <h3>✨ AI 一键生成</h3>
+        <h3>AI 一键生成</h3>
         <p>AI 将根据当前的课题、章节和摘要自动生成完整教案。<br><b>注意：此操作可能会覆盖您已手动输入的内容。</b></p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
