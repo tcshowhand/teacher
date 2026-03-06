@@ -816,15 +816,15 @@ const handleAIUpdate = (newData) => {
 }
 
 .modal-content {
-  background: #fdfbf7; /* paper-bg */
+  background: #fdfbf7;
   padding: 30px;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  border: 3px solid #2c3e50; /* text-color */
+  border: 3px solid #2c3e50;
   box-shadow: 10px 10px 0 rgba(0,0,0,0.2);
   width: 90%;
   max-width: 400px;
   text-align: center;
-  font-family: 'Architects Daughter', cursive; /* handwriting-font */
+  font-family: 'Architects Daughter', cursive;
 }
 
 .modal-content h3 {

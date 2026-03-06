@@ -97,13 +97,11 @@ const handleImageChange = (event) => {
   opacity: 1;
 }
 
-/* ... existing styles ... */
-/* ... existing styles ... */
 .question-item {
   margin-bottom: 2rem;
   padding: 1.5rem;
   border: 2px solid var(--text-color);
-  border-radius: 3px 8px 4px 6px / 6px 4px 9px 3px; /* Hand-drawn feel */
+  border-radius: 3px 8px 4px 6px / 6px 4px 9px 3px;
   background: #fffefb;
   box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
   position: relative;
@@ -128,11 +126,8 @@ const handleImageChange = (event) => {
   margin-bottom: 10px;
   border-bottom: 2px solid var(--text-color);
   padding-bottom: 5px;
-  /* Slight rotation just for the header line visual? No, straight text implies straight line. */
-  /* Maybe refine border-bottom to use a pseudo element for "hand drawn line"? Too complex for now. */
 }
 
-/* ... (q-num, q-title, q-tags) ... */
 .q-num {
   font-weight: bold;
   font-size: 1.2em;
@@ -192,7 +187,7 @@ const handleImageChange = (event) => {
 }
 
 pre {
-  font-family: 'Courier New', monospace; /* Monospace for code */
+  font-family: 'Courier New', monospace;
   background: #fff;
   padding: 10px;
   border: 2px solid #ddd;
@@ -214,7 +209,7 @@ pre {
   line-height: 1;
   padding: 0 5px;
   z-index: 10;
-  font-family: Arial, sans-serif; /* Standard font for X */
+  font-family: Arial, sans-serif;
 }
 
 .delete-btn:hover {

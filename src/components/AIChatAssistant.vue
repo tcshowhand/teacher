@@ -205,7 +205,7 @@ const renderMarkdown = (text) => {
 <style scoped>
 .chat-overlay {
   position: fixed;
-  bottom: 80px; /* Above the FAB */
+  bottom: 80px;
   right: 20px;
   width: 350px;
   height: 500px;

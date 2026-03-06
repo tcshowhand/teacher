@@ -358,7 +358,6 @@ const handleAIUpdate = (newChapters) => {
   text-align: center;
   min-height: 100vh;
   color: #2c3e50;
-  /* Paper grid background */
   background-color: #fdfbf7;
   background-image:
     linear-gradient(#e1e8ed 1px, transparent 1px),
@@ -366,7 +365,6 @@ const handleAIUpdate = (newChapters) => {
   background-size: 20px 20px;
 }
 
-/* Animations */
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -462,7 +460,6 @@ h1 {
   border: 2px solid #2c3e50;
   padding: 8px 16px;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  /* Hand-drawn shape */
   cursor: pointer;
   font-size: 1em;
   color: #2c3e50;
@@ -548,7 +545,6 @@ input {
   font-family: 'Architects Daughter', cursive;
   border: none;
   border-bottom: 3px solid #2c3e50;
-  /* Notebook line style */
   background: transparent;
   outline: none;
   transition: all 0.3s;
@@ -557,7 +553,6 @@ input {
   border-radius: 0;
 }
 
-/* 新增的大纲输入框样式 */
 .outline-input {
   font-size: 1.2em;
   font-family: 'Architects Daughter', cursive;
@@ -662,16 +657,13 @@ input:focus {
   border: 1px solid #ccc;
   box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.1);
   position: relative;
-  /* Post-it / Index card feel */
   background: #fff;
   border-top: 10px solid #a2d5f2;
-  /* Default tape color */
   animation: fadeInUp 0.6s ease-out backwards;
 }
 
 .chapter-card:nth-child(even) {
   border-top-color: #ffccbc;
-  /* Alternate color */
   transform: rotate(1deg);
 }
 
@@ -739,10 +731,8 @@ input:focus {
   width: 100%;
   border: none;
   background: transparent;
-  /* Notebook styling */
   background-image: linear-gradient(#eee 1px, transparent 1px);
   background-size: 100% 1.5em;
-  /* Match line height */
   line-height: 1.5em;
   font-family: inherit;
   font-size: 1em;
@@ -881,12 +871,10 @@ input:focus {
 
   .chapter-card {
     transform: none !important;
-    /* Disable rotation on mobile for cleaner look */
     margin-bottom: 20px;
   }
 }
 
-/* Modal Styles Global (Copied from Editors) */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -903,17 +891,14 @@ input:focus {
 
 .modal-content {
   background: #fdfbf7;
-  /* paper-bg */
   padding: 30px;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
   border: 3px solid #2c3e50;
-  /* text-color */
   box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.2);
   width: 90%;
   max-width: 400px;
   text-align: center;
   font-family: 'Architects Daughter', cursive;
-  /* handwriting-font */
 }
 
 .modal-content h3 {

@@ -484,7 +484,7 @@ const removeSlide = (index) => {
 .ai-actions {
     text-align: center;
     margin-bottom: 30px;
-    margin-top: 50px; /* Reduced to accommodate top bar */
+    margin-top: 50px;
 }
 .ai-gen-btn {
   background: white;
@@ -503,7 +503,7 @@ const removeSlide = (index) => {
 .ai-gen-btn:hover:not(:disabled) {
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 #2c3e50;
-  background: #f3e5f5; /* Light purple tint for PPT context */
+  background: #f3e5f5;
 }
 
 .ai-gen-btn:disabled {

@@ -93,12 +93,10 @@ const cancelDelete = () => {
   background: white;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   position: relative;
-  /* Paper texture */
   background-image: linear-gradient(var(--paper-line) 1px, transparent 1px), linear-gradient(90deg, var(--paper-line) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
-/* Holes for binding */
 .exam-paper::after {
   content: '';
   position: absolute;
@@ -148,9 +146,7 @@ const cancelDelete = () => {
 .add-section {
   text-align: center;
   margin: 30px 0;
-  opacity: 0; /* Hidden by default for printing? No, we probably want it visible then auto-hide during PDF export? */
-  /* Actually PDF export clone logic copies styles. If we want to hide it in PDF, we can use a class or handle it in export logic. */
-  /* For now let's just make it visible. */
+  opacity: 0;
   opacity: 1; 
   transition: opacity 0.3s;
 }

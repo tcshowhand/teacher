@@ -162,7 +162,6 @@ const removeProcessRow = (index) => {
   background: white;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   position: relative;
-  /* Paper texture matching ExamPaper */
   background-image: linear-gradient(#e1ded5 1px, transparent 1px), linear-gradient(90deg, #e1ded5 1px, transparent 1px);
   background-size: 20px 20px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -348,7 +347,7 @@ h3 {
 }
 
 .ai-gen-btn-inline:disabled {
-  opacity: 0.9; /* Keep it visible */
+  opacity: 0.9;
   cursor: wait;
 }
 

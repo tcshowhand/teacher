@@ -6,10 +6,13 @@ AI 驱动，一键生成教学大纲与配套试题
 [![GitHub Issues](https://img.shields.io/github/issues/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/issues)
 [![GitHub Solved Issues](https://img.shields.io/github/issues-closed/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/issues?q=is%3Aissue+is%3Aclosed)
 [![GitHub Last Commit](https://img.shields.io/github/last-commit/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/commits/main)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/tcshowhand/teacher)
 
 ## 项目定位
 
 豫唐教师辅助教学平台（Yutang Teacher Assistant Platform）是一款专为教育工作者打造的生产力工具。项目深度结合职业教育教学需求，通过 Vue 3 与现代 AI 技术栈，将传统繁琐的备课、出卷、课件制作流程转化为高度自动化的数字化工作流。
+
+**当前版本：v1.0.0**
 
 ## 行业背景与核心价值
 

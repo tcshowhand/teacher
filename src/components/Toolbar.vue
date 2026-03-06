@@ -32,12 +32,14 @@ const handleFileImport = (event) => {
     reader.readAsText(file)
   }
 }
+
+
+const appVersion = 'v1.0.0'
 </script>
 
 <template>
   <div class="toolbar" :class="{ 'mobile-expanded': isExpanded }">
     
-    <!-- Mobile Toggle Button -->
     <button class="toggle-btn" @click="isExpanded = !isExpanded">
       {{ isExpanded ? '❌' : '🛠️' }}
     </button>
@@ -61,6 +63,7 @@ const handleFileImport = (event) => {
 
       <button @click="showServiceModal = true" style="background: #fff8e1; color: #f39c12;">➕ 友情赞助</button>
       <button @click="$emit('open-settings')">⚙️ 设置</button>
+      <div class="version-info">版本 {{ appVersion }}</div>
     </div>
     
     <ServiceModal v-if="showServiceModal" @close="showServiceModal = false" />
@@ -75,7 +78,7 @@ const handleFileImport = (event) => {
   z-index: 100;
   display: flex;
   flex-direction: column;
-  align-items: flex-end; /* Align to right */
+  align-items: flex-end;
 }
 
 .toolbar-content {
@@ -95,7 +98,7 @@ const handleFileImport = (event) => {
 button, .import-btn {
   background: var(--paper-bg, #fff);
   border: 2px solid var(--text-color, #2c3e50);
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* Organic border */
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
   padding: 10px 15px;
   text-align: left;
   font-family: var(--handwriting-font, inherit);
@@ -107,7 +110,15 @@ button, .import-btn {
   align-items: center;
   gap: 8px;
   color: var(--text-color, #2c3e50);
-  white-space: nowrap; /* Prevent wrapping */
+  white-space: nowrap;
+}
+
+.version-info {
+  font-size: 0.8em;
+  color: #666;
+  text-align: center;
+  padding: 5px 0;
+  font-family: var(--handwriting-font, inherit);
 }
 
 button:active, .import-btn:active {
@@ -119,7 +130,6 @@ button:active, .import-btn:active {
   background: #fff;
 }
 
-/* Mobile Toggle Styles */
 .toggle-btn {
   display: none;
 }
@@ -129,7 +139,7 @@ button:active, .import-btn:active {
     top: auto;
     bottom: 30px;
     right: 20px;
-    flex-direction: column-reverse; /* Toggle button at bottom */
+    flex-direction: column-reverse;
     gap: 15px;
   }
 
