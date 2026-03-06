@@ -5,7 +5,7 @@ defineEmits(['close'])
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content service-modal">
-      <h3>💎 友情赞助</h3>
+      <h3>友情赞助</h3>
       <div class="service-content">
         <p class="price">
           <span class="highlight"><img src="/img/pay.jpg" alt="" srcset=""></span>

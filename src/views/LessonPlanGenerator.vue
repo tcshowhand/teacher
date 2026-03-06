@@ -216,8 +216,8 @@ const handleAIUpdate = (newChapters) => {
         style="background: #e8f8f5; border-color: #1abc9c; color: #16a085;">🔐 登录</button>
 
       <button class="settings-btn" @click="showServiceModal = true"
-        style="background: #fff8e1; border-color: #f1c40f; color: #f39c12; margin-right: 10px;">➕ 友情赞助</button>
-      <button class="settings-btn" @click="showSettings = true">⚙️ 设置 </button>
+        style="background: #fff8e1; border-color: #f1c40f; margin-right: 10px;">友情赞助</button>
+      <button class="settings-btn" @click="showSettings = true">设置</button>
     </div>
 
     <div class="hero-section">
@@ -258,7 +258,7 @@ const handleAIUpdate = (newChapters) => {
 
       <div class="generate-inputs">
         <button class="generate-btn" @click="handleGenerate" :disabled="isGenerating">
-          {{ isGenerating ? '✨ 生成中...' : '✨ 开始生成' }}
+          {{ isGenerating ? '生成中...' : '开始生成' }}
         </button>
       </div>
     </div>

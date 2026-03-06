@@ -383,11 +383,11 @@ const removeSlide = (index) => {
     <!-- AI Generation Confirmation Modal -->
     <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
-        <h3>✨ AI 一键生成</h3>
+        <h3>AI 一键生成</h3>
         <p>AI 将根据当前的章节信息和完整教案自动生成PPT。<br><b>注意：此操作可能会覆盖您已手动输入的内容。</b></p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
-          <button class="modal-btn confirm" @click="confirmGeneratePPT">✨ 开始生成</button>
+          <button class="modal-btn confirm" @click="confirmGeneratePPT">开始生成</button>
         </div>
       </div>
     </div>
