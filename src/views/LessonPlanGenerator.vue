@@ -264,7 +264,7 @@ const handleAIUpdate = (newChapters) => {
     </div>
 
     <div class="results-section" v-if="generatedChapters.length > 0">
-      <h2>📖 生成结果</h2>
+      <h2>生成结果</h2>
       <div class="chapters-grid">
         <div v-for="(chapter, index) in generatedChapters" :key="chapter.id" class="chapter-card">
           <div class="chapter-badge">#{{ index + 1 }}</div>

@@ -86,7 +86,7 @@ npm run dev
 npm run build
 ```
 
-## 📂 目录结构
+## 目录结构
 
 - `src/components`: 通用组件库
 - `src/views`: 页面视图（教案生成、PPT编辑、试卷编辑等）

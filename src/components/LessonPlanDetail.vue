@@ -40,7 +40,7 @@ const removeProcessRow = (index) => {
       </div>
       <button class="ai-gen-btn-inline" :class="{ 'loading': isGenerating }" @click="$emit('generate-ai')" :disabled="isGenerating">
         <span v-if="isGenerating" class="spinner">↻</span>
-        {{ isGenerating ? 'AI 正在奋笔疾书生成教案中...' : '✨ AI 一键生成完整教案' }}
+        {{ isGenerating ? 'AI 正在奋笔疾书生成教案中...' : 'AI 一键生成完整教案' }}
       </button>
     </div>
 
