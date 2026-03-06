@@ -1,4 +1,5 @@
-# 豫唐教师辅助教学平台：智能化教研效率工具
+# 豫唐智能教案在线生成平台
+AI 驱动，一键生成教学大纲与配套试题
 
 [![GitHub Stars](https://img.shields.io/github/stars/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/tcshowhand/teacher)](https://github.com/tcshowhand/teacher/network/members)

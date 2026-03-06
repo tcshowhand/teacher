@@ -207,7 +207,7 @@ const handleAIUpdate = (newChapters) => {
     </div>
 
     <div class="hero-section">
-      <h1>📚 智能教案生成器</h1>
+      <h1>豫唐智能教案在线生成平台</h1>
       <p class="subtitle">AI 驱动，一键生成教学大纲与配套试题</p>
     </div>
 
