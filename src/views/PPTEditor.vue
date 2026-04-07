@@ -73,35 +73,27 @@ onMounted(async () => {
     pptData.value = createEmptyPPT(title)
   }
 
-  // ALWAYS try to sync context from Generator State if available (to get latest summary/mode)
   if (courseName && chapterId) {
      const GENERATOR_KEY = 'lesson_plan_generator_state_v3'
      try {
        const raw = localStorage.getItem(GENERATOR_KEY)
        if (raw) {
          const state = JSON.parse(raw)
-         // Use loose comparison for ID as route query is string
          const ch = state.generatedChapters?.find(c => c.id == chapterId)
          
          if (ch) {
-           // Update metadata in pptData if fields are missing or empty (or force update?)
-           // Strategy: If it's a new file (just created), overwrite.
-           // If it's cached, maybe we only update context?
-           // User wants "generate according to lesson plan", so having the context is key.
-           
+
            if (ch.teachingMode) {
               pptData.value.teachingMode = ch.teachingMode
            }
            if (ch.summary) {
               pptData.value.summary = ch.summary
            }
-           // Use title from generator if cache title seems default? 
-           // Better to trust generator for titles if we assume sync.
+
            const genTitle = ch.mainTitle || ch.title
            if (genTitle) pptData.value.title = genTitle
            if (ch.subTitle) pptData.value.subtitle = ch.subTitle
 
-           // Update lessonContext for AI
            lessonContext.value = `章节主标题：${genTitle}\n章节副标题：${ch.subTitle}\n授课形式：${ch.teachingMode || '理论课'}\n内容摘要：${ch.summary || ''}`
          }
        }
@@ -109,7 +101,6 @@ onMounted(async () => {
   }
 })
 
-// Auto-save
 watch(pptData, async (newVal) => {
   if (newVal && currentDocId.value) {
     await localforage.setItem(getStorageKey(currentDocId.value), JSON.parse(JSON.stringify(newVal)))
@@ -121,20 +112,16 @@ const handleModelChange = (id) => {
   localStorage.setItem('last_active_model_id', id)
 }
 
-// AI Generation
 const generatePPT = async () => {
   if (isGenerating.value) return
   if (pptData.value && pptData.value.slides.length > 1) {
-    // 显示自定义确认弹窗而不是原生confirm
     showAIGenConfirmModal.value = true
     return
   }
   
-  // 如果没有现有内容，直接生成
   await confirmGeneratePPT()
 }
 
-// 新增确认生成函数
 const confirmGeneratePPT = async () => {
   showAIGenConfirmModal.value = false
   isGenerating.value = true
@@ -143,11 +130,9 @@ const confirmGeneratePPT = async () => {
 
   const { courseName, chapterId } = route.query
   const cName = courseName || '未命名课程'
-  
-  // Construct context from current pptData (which might be edited by user or loaded from storage)
+
   const currentContext = `章节主标题：${pptData.value.title}\n章节副标题：${pptData.value.subtitle || '无'}\n授课形式：${pptData.value.teachingMode || '理论课'}\n内容摘要：${pptData.value.summary || '无'}`
 
-  // 尝试加载完整的教案数据
   let lessonPlanContext = ''
   if (courseName && chapterId) {
     try {

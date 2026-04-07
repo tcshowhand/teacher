@@ -33,20 +33,16 @@ const showSettingsModal = ref(false)
 const pendingDeleteTemplateIndex = ref(-1)
 const isExporting = ref(false)
 const currentModelId = ref(localStorage.getItem('last_active_model_id') || DEFAULT_MODEL_ID)
-// Remove showModelConfirmModal as we now switch workspaces seamlessly
 
 const route = useRoute()
 
-// Helper to create empty lesson plan structure
 const createEmptyLessonPlan = (title, mainTitle = '', subTitle = '', summary = '') => {
-  // If mainTitle/subTitle provided, use them. Otherwise fallback to parsing title.
   let course, chapter
   
   if (mainTitle && subTitle) {
     course = mainTitle
     chapter = subTitle
   } else {
-    // Old fallback
     const parts = title.split(' - ')
     course = parts[0]
     chapter = parts[1]
@@ -58,7 +54,7 @@ const createEmptyLessonPlan = (title, mainTitle = '', subTitle = '', summary = '
     "编号": "第 1 号",
     "课时安排": "2 课时",
     "授课形式": "理论课",
-    "摘要": summary || '', // New field
+    "摘要": summary || '',
     "知识与技能": "",
     "过程与方法": "",
     "情感、态度、价值观": "",
@@ -89,21 +85,13 @@ const loadModelData = async (modelId) => {
 }
 
 const handleModelChange = async (newModelId) => {
-    // 1. Save current model ID for persistence
     currentModelId.value = newModelId
     localStorage.setItem('last_active_model_id', newModelId)
 
-    // 2. Reload data for the new model workspace
     await loadCurrentData()
 }
 
-// Re-usable function to load data based on current context
 const loadCurrentData = async () => {
-    // Determine Document ID
-    // Note: Use the same logic as onMounted but applied to current state
-    // We already have currentDocId set, so we can re-use it? 
-    // Yes, switching model shouldn't change the doc ID (e.g. still "default_doc" or "courseA_ch1")
-    // but the CONTENT (storage key) changes.
     
     const storageKey = getStorageKey(currentDocId.value)
     let loaded = false
@@ -119,18 +107,15 @@ const loadCurrentData = async () => {
     }
 
     if (!loaded) {
-        // If no cache for this model, load the default template for this model
         const initialData = await loadModelData(currentModelId.value)
 
         if (initialData) {
             examData.value = initialData
         } else {
-            // Fallback
              examData.value = createEmptyLessonPlan(currentDocId.value)
         }
     }
 
-    // ALWAYS override metadata if we have course info (Sync from Generator)
     const { courseName, chapterId, lessonNumber } = route.query
     if (courseName && chapterId && examData.value) {
          try {
@@ -142,8 +127,6 @@ const loadCurrentData = async () => {
                     if (foundChapter) {
                         examData.value['授课课题'] = foundChapter.mainTitle
                         examData.value['子章节'] = foundChapter.subTitle || ''
-                        // Only sync summary/mode if they are really set, otherwise keep existing specific edits might be better?
-                        // User request: "修改信息，他不会同步" -> Implies they want overwrite.
                         if (foundChapter.summary) examData.value['摘要'] = foundChapter.summary
                         if (foundChapter.teachingMode) examData.value['授课形式'] = foundChapter.teachingMode
                     }
@@ -154,7 +137,6 @@ const loadCurrentData = async () => {
         }
     }
 
-    // Also handle direct query overrides (for standalone links)
     let { mainTitle, subTitle, summary, teachingMode } = route.query
     if (mainTitle) examData.value['授课课题'] = mainTitle
     if (subTitle) examData.value['子章节'] = subTitle
@@ -162,33 +144,27 @@ const loadCurrentData = async () => {
     if (teachingMode) examData.value['授课形式'] = teachingMode
     if (lessonNumber) examData.value['编号'] = `第 ${lessonNumber} 号`
 }
-// Removed confirmSwitchModel and switchModel as they are replaced by simple handleModelChange
-
-// Helper to sync to generator... (unchanged)
 
 const getStorageKey = (docId) => {
-  // New storage key format included modelId for isolation
   return `exam_data_v1_plan_${currentModelId.value}_${docId}`
 }
 
 const GENERATOR_STORAGE_KEY = 'lesson_plan_generator_state_v3'
 
-// Function to sync changes back to Generator state
 const syncToGenerator = (courseTitle, chapterTitle, subTitle, teachingMode, summary, chapterId) => {
-  if (!chapterId) return // Cannot sync without ID
+  if (!chapterId) return
   try {
     const rawState = localStorage.getItem(GENERATOR_STORAGE_KEY)
     if (rawState) {
       const state = JSON.parse(rawState)
       
-      // Ensure we are syncing to the correct course
       if (state.courseName === courseTitle) {
         const chapter = state.generatedChapters.find(c => c.id === Number(chapterId))
         if (chapter) {
           chapter.mainTitle = chapterTitle
           chapter.subTitle = subTitle
           chapter.teachingMode = teachingMode
-          chapter.summary = summary // Sync summary
+          chapter.summary = summary
           localStorage.setItem(GENERATOR_STORAGE_KEY, JSON.stringify(state))
         }
       }
@@ -199,7 +175,6 @@ const syncToGenerator = (courseTitle, chapterTitle, subTitle, teachingMode, summ
 }
 
 onMounted(async () => {
-  // 1. Load Templates
   try {
     const cachedTemplates = await localforage.getItem(TEMPLATES_KEY)
     if (cachedTemplates) {
@@ -209,42 +184,30 @@ onMounted(async () => {
     console.error('Failed to load templates', e)
   }
 
-  // 2. Determine Document ID (Persistence Key)
-  // Use stable ID if available: courseName_chapterId
   const { courseName, chapterId, title, mainTitle, subTitle, summary, teachingMode } = route.query
   
   if (courseName && chapterId) {
     currentDocId.value = `${courseName}_ch${chapterId}`
   } else if (title) {
-    // Fallback for old links or standalone usage
     currentDocId.value = title
   } else {
     currentDocId.value = localStorage.getItem(LAST_ACTIVE_KEY) || 'default_doc'
   }
   
-  // Save as last active
   localStorage.setItem(LAST_ACTIVE_KEY, currentDocId.value)
   
   const storageKey = getStorageKey(currentDocId.value)
 
-  // 3. Load Current Lesson Plan Data
-  // logic refactored to loadCurrentData
   await loadCurrentData()
-
-  // 4. Initialize if new (Handled inside loadCurrentData)
-
-// Removed old init logic block as it is now inside loadCurrentData
 
 })
 
-// Auto-save to local storage (IndexedDB) AND Sync to Generator
 watch(examData, async (newVal) => {
   if (newVal && currentDocId.value) {
     try {
       const storageKey = getStorageKey(currentDocId.value)
       await localforage.setItem(storageKey, JSON.parse(JSON.stringify(newVal))) 
-      
-      // Two-way sync: Editor -> Home
+
       const { courseName, chapterId } = route.query
       if (courseName && chapterId) {
         syncToGenerator(
@@ -277,11 +240,8 @@ const handleExportWord = async () => {
   isExporting.value = true
 
   try {
-    // Load the template
-    // Use BASE_URL to support sub-directory deployment
     const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/'
     
-    // Find current model template
     const model = LESSON_PLAN_MODELS.find(m => m.id === currentModelId.value) || LESSON_PLAN_MODELS[0]
     const templateFile = model.docxTemplate || '10.docx'
     
@@ -303,10 +263,6 @@ const handleExportWord = async () => {
     // Prepare data
     const data = JSON.parse(JSON.stringify(examData.value));
     
-    // Transform "教学过程" from array of arrays to array of objects for templating
-    // Input: [["Step 1", "Content 1"], ["Step 2", "Content 2"]]
-    // Output: [{name: "Step 1", content: "Content 1"}, ...]
-    // Template usage: [#教学过程] [环节名称] [环节内容] [/教学过程]
     if (data["教学过程"] && Array.isArray(data["教学过程"])) {
         data["教学过程"] = data["教学过程"].map(item => {
             if (Array.isArray(item) && item.length >= 2) {
@@ -440,7 +396,7 @@ const confirmReset = async () => {
 }
 
 const showAIGenConfirmModal = ref(false)
-const showApiKeyAlertModal = ref(false) // New Alert Modal
+const showApiKeyAlertModal = ref(false)
 
 
 const generateLessonPlan = () => {
@@ -501,14 +457,13 @@ const confirmGenerateLessonPlan = async () => {
       try {
         const cleanText = fullText.replace(/```json/g, '').replace(/```/g, '').trim()
 
-        // Check for specific error message from worker/API
         if (cleanText.includes('请先配置 API Key') || cleanText.includes('API Key not configured')) {
             showApiKeyAlertModal.value = true
             return
         }
 
         const newData = JSON.parse(cleanText)
-        // Update fields safely
+
         Object.keys(newData).forEach(key => {
           examData.value[key] = newData[key]
         })
@@ -525,8 +480,7 @@ const showAIChat = ref(false)
 
 const handleAIUpdate = (newData) => {
   if (!newData) return
-  // Merge or replace
-  // We'll replace the fields that exist in newData
+
   Object.keys(newData).forEach(key => {
     examData.value[key] = newData[key]
   })
@@ -537,7 +491,7 @@ const handleAIUpdate = (newData) => {
 <template>
   <div class="app-container">
     <div class="home-link">
-      <router-link to="/">🏠 返回首页</router-link>
+      <router-link to="/">返回首页</router-link>
     </div>
 
     <Toolbar 
@@ -563,12 +517,9 @@ const handleAIUpdate = (newData) => {
       Loading Data...
     </div>
 
-    <!-- Modals (Save, Load, Delete, Reset, Export, Settings, Chat) -->
-    
-    <!-- Save Template Modal -->
     <div class="modal-overlay" v-if="showSaveModal">
       <div class="modal-content">
-        <h3>💾 保存为模板</h3>
+        <h3>保存为模板</h3>
         <input v-model="templateName" placeholder="给模板起个名字..." class="modal-input" @keyup.enter="confirmSaveTemplate" />
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showSaveModal = false">取消</button>
@@ -577,10 +528,9 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Load Template Modal -->
     <div class="modal-overlay" v-if="showLoadModal">
       <div class="modal-content load-modal">
-        <h3>📂 导入模板 (仅展示教案)</h3>
+        <h3>导入模板 (仅展示教案)</h3>
         <div class="template-list" v-if="savedTemplates.filter(t => t.type === 'lesson_plan').length > 0">
           <div v-for="(template, index) in savedTemplates.filter(t => t.type === 'lesson_plan')" :key="template.id" class="template-item">
             <div class="template-info" @click="loadTemplate(template)">
@@ -590,9 +540,6 @@ const handleAIUpdate = (newData) => {
               </div>
               <div class="t-date">{{ template.date }}</div>
             </div>
-            <!-- Note: Deleting templates from here deletes them globally. Might be confusing if filtered. 
-                 It's better to find the real index or just allow deleting. 
-                 For now, let's look up the index in the original array. -->
             <button class="delete-template-btn" @click.stop="deleteTemplate(savedTemplates.indexOf(template))" title="删除模板">×</button>
           </div>
         </div>
@@ -604,10 +551,9 @@ const handleAIUpdate = (newData) => {
         </div>
       </div>
     </div>
-    <!-- Delete Template Confirmation Modal -->
     <div class="modal-overlay" v-if="showDeleteConfirmModal" style="z-index: 2100;">
       <div class="modal-content">
-        <h3>🗑️ 确认删除模板？</h3>
+        <h3>确认删除模板？</h3>
         <p>确定要删除这个模板吗？此操作无法撤销。</p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="cancelDeleteTemplate">取消</button>
@@ -616,10 +562,9 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Reset Data Confirmation Modal -->
     <div class="modal-overlay" v-if="showResetConfirmModal" style="z-index: 2100;">
       <div class="modal-content">
-        <h3>🧹 确认重置？</h3>
+        <h3>确认重置？</h3>
         <p>确定要清空所有修改吗？<br>这将恢复到默认状态。此操作无法撤销！</p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showResetConfirmModal = false">取消</button>
@@ -628,7 +573,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Load Template Confirmation Modal -->
     <div class="modal-overlay" v-if="showLoadConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
         <h3>📖 确认加载？</h3>
@@ -640,9 +584,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-
-    
-    <!-- AI Generation Confirmation Modal -->
     <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
         <h3>AI 一键生成</h3>
@@ -654,7 +595,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- AI Chat Assistant -->
     <AIChatAssistant 
       v-model="showAIChat" 
       :currentContent="examData" 
@@ -662,13 +602,10 @@ const handleAIUpdate = (newData) => {
       @update-content="handleAIUpdate" 
     />
 
-    <!-- Floating AI Chat Button -->
     <button class="ai-chat-fab" @click="showAIChat = !showAIChat" title="AI 助手">
       🤖 对话助手
     </button>
 
-
-    <!-- API Key Alert Modal -->
     <div class="modal-overlay" v-if="showApiKeyAlertModal" style="z-index: 2300;">
       <div class="modal-content">
         <h3>⚠️ 需要配置 API Key</h3>
@@ -680,7 +617,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Export Loading Overlay -->
     <div class="modal-overlay" v-if="isExporting" style="z-index: 3000; cursor: wait;">
       <div class="modal-content" style="max-width: 300px;">
         <h3>🖨️ 正在导出...</h3>
@@ -689,9 +625,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-
-
-    <!-- AI Components -->
     <SettingsModal 
       v-if="showSettingsModal" 
       :currentModelId="currentModelId"

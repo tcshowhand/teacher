@@ -17,12 +17,12 @@ const courseName = ref('')
 const weeklySessions = ref(4)
 const sessionsPerPlan = ref(2)
 const totalWeeks = ref(18)
-const outlineContent = ref('') // 新增大纲内容ref
+const outlineContent = ref('')
 const isGenerating = ref(false)
 const generatedChapters = ref([])
 const showSettings = ref(false)
 const showServiceModal = ref(false)
-const showApiKeyAlertModal = ref(false) // New Alert Modal
+const showApiKeyAlertModal = ref(false)
 const showLoginModal = ref(false)
 const currentModelId = ref(localStorage.getItem('last_active_model_id') || DEFAULT_MODEL_ID)
 
@@ -42,9 +42,8 @@ onMounted(() => {
       if (parsed.weeklySessions) weeklySessions.value = parsed.weeklySessions
       if (parsed.sessionsPerPlan) sessionsPerPlan.value = parsed.sessionsPerPlan
       if (parsed.totalWeeks) totalWeeks.value = parsed.totalWeeks
-      if (parsed.outlineContent) outlineContent.value = parsed.outlineContent // 加载保存的大纲内容
+      if (parsed.outlineContent) outlineContent.value = parsed.outlineContent
 
-      // Migration logic for old data format
       if (parsed.generatedChapters && Array.isArray(parsed.generatedChapters)) {
         generatedChapters.value = parsed.generatedChapters.map(chapter => ({
           ...chapter,
@@ -66,7 +65,7 @@ watch([courseName, weeklySessions, sessionsPerPlan, totalWeeks, outlineContent, 
       weeklySessions: weeklySessions.value,
       sessionsPerPlan: sessionsPerPlan.value,
       totalWeeks: totalWeeks.value,
-      outlineContent: outlineContent.value, // 保存大纲内容
+      outlineContent: outlineContent.value,
       generatedChapters: generatedChapters.value
     }))
   } catch (e) {
@@ -86,13 +85,11 @@ const handleGenerate = async () => {
   const totalSessions = weeklySessions.value * totalWeeks.value
   const estimatedPlans = Math.ceil(totalSessions / sessionsPerPlan.value)
 
-  // 构建提示词，包含大纲内容（如果提供了）
   let prompt = `请为课程《${courseName.value}》设计一个学期的教学进度大纲。
   适用学段：${settings.educationLevel} 。
   课程安排：共 ${totalWeeks.value} 周，每周 ${weeklySessions.value} 课时，共计 ${totalSessions} 课时。
   备课要求：每 ${sessionsPerPlan.value} 节课写一份教案，预计需要生成 ${estimatedPlans} 份教案。`
 
-  // 如果用户提供了大纲，则添加到提示词中
   if (outlineContent.value.trim()) {
     prompt += `\n\n用户提供的课程大纲参考：\n${outlineContent.value.trim()}\n\n请根据以上大纲和课程信息，严格按照周次顺序规划出一系列的教案主题。特别注意：第1个教案必须对应第1周内容，第2个教案必须对应第2周内容，以此类推。`
   } else {
@@ -120,11 +117,10 @@ const handleGenerate = async () => {
     fullText = text
     if (isComplete) {
       isGenerating.value = false
-      // Attempt to parse JSON
+
       try {
         const cleanText = fullText.replace(/```json/g, '').replace(/```/g, '').trim()
 
-        // Check for specific error message from worker/API
         if (cleanText.includes('请先配置 API Key') || cleanText.includes('API Key not configured')) {
           showApiKeyAlertModal.value = true
           return
@@ -132,7 +128,6 @@ const handleGenerate = async () => {
 
         const parsed = JSON.parse(cleanText)
 
-        // Ensure robust structure even if AI returns old keys
         generatedChapters.value = parsed.map(item => ({
           id: item.id,
           mainTitle: item.mainTitle || item.title || '无标题',
@@ -156,7 +151,6 @@ const goToExam = (chapter, index, type) => {
   router.push({
     path: path,
     query: {
-      // Minimal params
       courseName: courseName.value,
       chapterId: chapter.id,
       lessonNumber: index + 1,
@@ -167,10 +161,39 @@ const goToExam = (chapter, index, type) => {
 
 const showAIChat = ref(false)
 
+// 删除某一章节
+const deleteChapter = (index) => {
+  if (generatedChapters.value.length <= 1) {
+    alert('至少保留一个教案！')
+    return
+  }
+  generatedChapters.value.splice(index, 1)
+  // 重新编号
+  generatedChapters.value.forEach((ch, i) => { ch.id = i + 1 })
+}
+
+// 在指定位置后插入一个新章节
+const addChapterAfter = (index) => {
+  const newChapter = {
+    id: Date.now(),
+    mainTitle: '新教案主题',
+    subTitle: '副标题',
+    summary: '请填写本节课的教学内容摘要。',
+    teachingMode: '理论课'
+  }
+  generatedChapters.value.splice(index + 1, 0, newChapter)
+  // 重新编号
+  generatedChapters.value.forEach((ch, i) => { ch.id = i + 1 })
+}
+
+// 在末尾添加一个新章节
+const addChapterAtEnd = () => {
+  addChapterAfter(generatedChapters.value.length - 1)
+}
+
 const handleAIUpdate = (newChapters) => {
   let chaptersToUpdate = newChapters
 
-  // Robustness: If AI returned an object { chapters: [...] }, extract the array
   if (!Array.isArray(newChapters) && typeof newChapters === 'object') {
     const values = Object.values(newChapters)
     const foundArray = values.find(v => Array.isArray(v))
@@ -180,11 +203,8 @@ const handleAIUpdate = (newChapters) => {
   }
 
   if (Array.isArray(chaptersToUpdate)) {
-    // Basic validation
     generatedChapters.value = chaptersToUpdate.map((item, index) => {
-      // Try to find the title field
       const title = item.mainTitle || item.title || item.chapterTitle || item.name || item.caption || `第 ${index + 1} 章`
-      // Try to find summary
       const summary = item.summary || item.desc || item.description || item.content || ''
 
       return {
@@ -195,7 +215,7 @@ const handleAIUpdate = (newChapters) => {
         teachingMode: item.teachingMode || '理论课'
       }
     })
-    // Optional: Notify success via UI if needed, but the change should be visible
+
   } else {
     console.warn('AI returned invalid format', newChapters)
     alert('AI 返回的数据格式不正确，未能更新列表。')
@@ -264,10 +284,16 @@ const handleAIUpdate = (newChapters) => {
     </div>
 
     <div class="results-section" v-if="generatedChapters.length > 0">
-      <h2>生成结果</h2>
+      <div class="results-header">
+        <h2>生成结果</h2>
+      </div>
       <div class="chapters-grid">
         <div v-for="(chapter, index) in generatedChapters" :key="chapter.id" class="chapter-card">
           <div class="chapter-badge">#{{ index + 1 }}</div>
+          <!-- 卡片左上角：仅保留删除按钮，悬停显示 -->
+          <div class="card-controls">
+            <button class="card-ctrl-btn delete-btn" @click="deleteChapter(index)" title="删除此教案">✕</button>
+          </div>
           <div class="chapter-info">
             <!-- Main Title -->
             <input v-model="chapter.mainTitle" class="editable-title main-title" placeholder="大标题" />
@@ -293,6 +319,9 @@ const handleAIUpdate = (newChapters) => {
             </button>
             <button class="action-btn ppt-btn" @click="goToExam(chapter, index, 'ppt')">
               生成 PPT
+            </button>
+            <button class="action-btn insert-action-btn" @click="addChapterAfter(index)" title="在此教案后插入新教案">
+              ↓ 新增
             </button>
           </div>
         </div>
@@ -627,15 +656,100 @@ input:focus {
 }
 
 /* Results Section */
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
 .results-section h2 {
   font-size: 2.2em;
   color: #2c3e50;
-  margin-bottom: 30px;
+  margin-bottom: 0;
   position: relative;
   display: inline-block;
   animation: fadeInUp 0.8s ease-out;
   border-bottom: 3px double #2c3e50;
   padding-bottom: 5px;
+}
+
+.add-chapter-btn {
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: bold;
+  font-family: inherit;
+  background: #fff;
+  color: #27ae60;
+  border: 2px solid #27ae60;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 rgba(39, 174, 96, 0.25);
+  transition: all 0.2s;
+}
+
+.add-chapter-btn:hover {
+  background: #eafaf1;
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 rgba(39, 174, 96, 0.3);
+}
+
+/* 卡片内部控制按钮容器 */
+.card-controls {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  display: flex;
+  gap: 5px;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chapter-card:hover .card-controls {
+  opacity: 1;
+}
+
+.card-ctrl-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  font-family: inherit;
+  line-height: 1;
+  background: white;
+}
+
+.delete-btn {
+  color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.delete-btn:hover {
+  background: #e74c3c;
+  color: white;
+  transform: scale(1.15);
+  box-shadow: 0 2px 6px rgba(231, 76, 60, 0.4);
+}
+
+.insert-action-btn {
+  color: #27ae60;
+  border-color: #27ae60;
+}
+
+.insert-action-btn:hover {
+  background: #eafaf1;
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 rgba(39, 174, 96, 0.25);
 }
 
 .chapters-grid {

@@ -32,14 +32,13 @@ const showLoadModal = ref(false)
 const showDeleteConfirmModal = ref(false)
 const showResetConfirmModal = ref(false)
 
-// 添加AI生成确认弹窗状态
 const showAIGenConfirmModal = ref(false)
 
 const pendingDeleteTemplateIndex = ref(-1)
 const pendingLoadTemplate = ref(null)
 const templateName = ref('')
 const isExporting = ref(false)
-const showApiKeyAlertModal = ref(false) // New Alert Modal
+const showApiKeyAlertModal = ref(false)
 
 
 const route = useRoute()
@@ -188,21 +187,11 @@ const handleExportPDF = async () => {
     const pxPerMm = contentWidth / pdfPageWidth
     const marginMm = 20
     const marginPx = marginMm * pxPerMm
-    const pageHeightInPx = (pdfPageHeight * pxPerMm) - (marginPx * 2) // Printable area height in px
+    const pageHeightInPx = (pdfPageHeight * pxPerMm) - (marginPx * 2)
     
-    // Get all question items to check for cuts
     const questionElements = element.querySelectorAll('.question-item')
-    // Calculate logical positions (unscaled) then scale them
-    // Note: html2canvas scale affects the image size, but DOM offsetTop is unscaled.
-    // We need to map DOM coordinates to Canvas coordinates.
-    // Canvas is scaled by 'scale'. DOM offsets are 1x.
-    // So we multiply DOM offsets by scale.
     
     const questions = Array.from(questionElements).map(el => {
-      // Get offset relative to the exam-paper element
-      // offsetTop is relative to offsetParent. 
-      // We assume exam-paper is the offsetParent or we calculate cumulative offset.
-      // safest is getBoundingClientRect
       const rect = el.getBoundingClientRect()
       const containerRect = element.getBoundingClientRect()
       const top = (rect.top - containerRect.top) * scale
@@ -216,50 +205,35 @@ const handleExportPDF = async () => {
     while (currentY < contentHeight) {
       if (currentY > 0) pdf.addPage()
       
-      // Default: Fill the page
       let sliceHeight = Math.min(pageHeightInPx, contentHeight - currentY)
       let nextCutY = currentY + sliceHeight
 
-      // Check if we are cutting through a question
-      // A question is cut if: q.top < nextCutY AND q.bottom > nextCutY
-      // We look for the FIRST question that satisfies this
       const crossingQuestion = questions.find(q => q.top < nextCutY && q.bottom > nextCutY)
 
       if (crossingQuestion) {
-        // If the question is taller than the page itself, we can't avoid cutting it.
-        // We only adjust if the question starts AFTER currentY (it fits on the page partially, but we prefer to push it)
-        // OR if it could fit on the NEXT page.
-        // Simplified logic: If the cut is strictly inside the question, and the question top is below currentY,
-        // we cut AT the question top (pushing it to next page).
         if (crossingQuestion.top > currentY) {
-            // Adjust cut to be at the start of the question
             nextCutY = crossingQuestion.top
             sliceHeight = nextCutY - currentY
         }
-        // If crossingQuestion.top <= currentY, it means a huge question starting before this page even began 
-        // (or at the top) is continuing. We just have to cut it.
       }
 
-      // Create a canvas for this slice
       const sliceCanvas = document.createElement('canvas')
       sliceCanvas.width = contentWidth
       sliceCanvas.height = sliceHeight
       
       const sCtx = sliceCanvas.getContext('2d')
       
-      // Draw the slice
-      // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
       sCtx.drawImage(canvas, 0, currentY, contentWidth, sliceHeight, 0, 0, contentWidth, sliceHeight)
       
       const sliceData = sliceCanvas.toDataURL('image/png')
-      // PDF height needs to be calculated based on the actual sliceHeight drawn
+
       const pdfSliceHeight = sliceHeight / pxPerMm
       
       pdf.addImage(sliceData, 'PNG', 0, marginMm, pdfPageWidth, pdfSliceHeight)
       
       currentY += sliceHeight
-      // Add a tiny buffer to avoid potential rounding loops, though logic should be robust
-      if (sliceHeight <= 0) break; // Safety break
+
+      if (sliceHeight <= 0) break;
     }
     
     const now = new Date()
@@ -368,24 +342,19 @@ const confirmReset = async () => {
   showResetConfirmModal.value = false
 }
 
-// 修改generateExamPaper函数，使用自定义弹窗
 const generateExamPaper = async () => {
   if (isGeneratingExam.value) return
   if (examData.value && examData.value.problems && examData.value.problems.length > 0) {
-    // 显示自定义确认弹窗而不是原生confirm
     showAIGenConfirmModal.value = true
     return
   }
   
-  // 如果没有现有试题，直接生成
   await confirmGenerateExamPaper()
 }
 
-// 新增确认生成函数
 const confirmGenerateExamPaper = async () => {
   showAIGenConfirmModal.value = false
   isGeneratingExam.value = true
-  // Extract course title
   let title = "计算机相关课程"
   if (route.query.title) {
       title = route.query.title
@@ -424,16 +393,14 @@ const confirmGenerateExamPaper = async () => {
       isGeneratingExam.value = false
       try {
         const cleanText = fullText.replace(/```json/g, '').replace(/```/g, '').trim()
-        
-        // Check for specific error message from worker/API
+
         if (cleanText.includes('请先配置 API Key') || cleanText.includes('API Key not configured')) {
             showApiKeyAlertModal.value = true
             return
         }
 
         const newData = JSON.parse(cleanText)
-        
-        // Ensure image fields exist even if empty
+
         if (newData.problems) {
             newData.problems.forEach(p => {
                 if (!p.image) p.image = ""
@@ -453,8 +420,6 @@ const showAIChat = ref(false)
 
 const handleAIUpdate = (newData) => {
   if (!newData) return
-  // Merge or replace
-  // We'll replace the fields that exist in newData
   Object.keys(newData).forEach(key => {
     examData.value[key] = newData[key]
   })
@@ -463,7 +428,7 @@ const handleAIUpdate = (newData) => {
 <template>
   <div class="app-container">
     <div class="home-link">
-      <router-link to="/">🏠 返回首页</router-link>
+      <router-link to="/">返回首页</router-link>
     </div>
 
     <Toolbar 
@@ -482,7 +447,6 @@ const handleAIUpdate = (newData) => {
       </button>
     </div>
 
-    <!-- AI Chat Assistant -->
     <AIChatAssistant 
       v-model="showAIChat" 
       :currentContent="examData"
@@ -490,9 +454,8 @@ const handleAIUpdate = (newData) => {
       @update-content="handleAIUpdate" 
     />
 
-    <!-- Floating AI Chat Button -->
     <button class="ai-chat-fab" @click="showAIChat = !showAIChat" title="AI 助手">
-      🤖 试题助手
+      试题助手
     </button>
 
     <div class="content-area" v-if="examData">
@@ -501,11 +464,7 @@ const handleAIUpdate = (newData) => {
     <div v-else class="loading">
       Loading Data...
     </div>
-
-    <!-- Modals (Save, Load, Delete, Reset, Export, Settings, Chat) -->
-    <!-- Copying existing modal structure directly -->
     
-    <!-- Save Template Modal -->
     <div class="modal-overlay" v-if="showSaveModal">
       <div class="modal-content">
         <h3>💾 保存为模板</h3>
@@ -517,7 +476,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Load Template Modal -->
     <div class="modal-overlay" v-if="showLoadModal">
       <div class="modal-content load-modal">
         <h3>📂 导入模板 (仅展示试题)</h3>
@@ -541,7 +499,7 @@ const handleAIUpdate = (newData) => {
         </div>
       </div>
     </div>
-    <!-- Delete Template Confirmation Modal -->
+
     <div class="modal-overlay" v-if="showDeleteConfirmModal" style="z-index: 2100;">
       <div class="modal-content">
         <h3>🗑️ 确认删除模板？</h3>
@@ -553,7 +511,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Reset Data Confirmation Modal -->
     <div class="modal-overlay" v-if="showResetConfirmModal" style="z-index: 2100;">
       <div class="modal-content">
         <h3>🧹 确认重置？</h3>
@@ -565,7 +522,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Load Template Confirmation Modal -->
     <div class="modal-overlay" v-if="showLoadConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
         <h3>📖 确认加载？</h3>
@@ -577,7 +533,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- API Key Alert Modal -->
     <div class="modal-overlay" v-if="showApiKeyAlertModal" style="z-index: 2300;">
       <div class="modal-content">
         <h3>⚠️ 需要配置 API Key</h3>
@@ -589,7 +544,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- AI Generation Confirmation Modal -->
     <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
         <h3>AI 一键生成</h3>
@@ -601,7 +555,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-    <!-- Export Loading Overlay -->
     <div class="modal-overlay" v-if="isExporting" style="z-index: 3000; cursor: wait;">
       <div class="modal-content" style="max-width: 300px;">
         <h3>🖨️ 正在导出...</h3>
@@ -610,10 +563,6 @@ const handleAIUpdate = (newData) => {
       </div>
     </div>
 
-
-
-    <!-- AI Components -->
-    <!-- AI Components -->
     <SettingsModal 
       v-if="showSettingsModal" 
       :currentModelId="currentModelId"
