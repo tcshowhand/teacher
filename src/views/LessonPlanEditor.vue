@@ -5,6 +5,8 @@ import AIChatAssistant from '../components/AIChatAssistant.vue'
 import Toolbar from '../components/Toolbar.vue'
 import SettingsModal from '../components/SettingsModal.vue'
 
+import { useSettingsStore } from '../store/settings'
+
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { saveAs } from 'file-saver'
@@ -18,6 +20,8 @@ import { LESSON_PLAN_MODELS, DEFAULT_MODEL_ID } from '../config/models'
 const currentDocId = ref('')
 const examData = ref(null)
 const isGeneratingPlan = ref(false)
+
+const settings = useSettingsStore()
 
 const TEMPLATES_KEY = 'exam_paper_templates_v1'
 const LAST_ACTIVE_KEY = 'last_active_doc_v1'
@@ -412,12 +416,14 @@ const confirmGenerateLessonPlan = async () => {
   const summary = examData.value['摘要'] || ''
   const hours = examData.value['课时安排'] || '2 课时'
   const mode = examData.value['授课形式'] || '理论课'
+  const educationLevel = settings.educationLevel || '未指定'
   
   const prompt = `请为一个课程生成详细的教案 JSON 数据。
   课程名称：${course}
   章节名称：${chapter}
   课时安排：${hours}
   授课形式：${mode}
+  适用学段：${educationLevel}
   备课摘要/设计意图：${summary}
 
   请注意：该教案需符合《教案检查》的要求，重点关注以下方面：
