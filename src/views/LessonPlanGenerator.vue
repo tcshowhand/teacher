@@ -2,6 +2,8 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { sendToQwenAIDialogue } from '../api/qwenAPI'
+import localforage from 'localforage'
+import { saveAs } from 'file-saver'
 import SettingsModal from '../components/SettingsModal.vue'
 import ServiceModal from '../components/ServiceModal.vue'
 import AIChatAssistant from '../components/AIChatAssistant.vue'
@@ -221,6 +223,174 @@ const handleAIUpdate = (newChapters) => {
     alert('AI 返回的数据格式不正确，未能更新列表。')
   }
 }
+const fileInput = ref(null)
+const detailedFileInput = ref(null)
+
+const exportToJson = () => {
+  const data = {
+    courseName: courseName.value,
+    weeklySessions: weeklySessions.value,
+    sessionsPerPlan: sessionsPerPlan.value,
+    totalWeeks: totalWeeks.value,
+    outlineContent: outlineContent.value,
+    generatedChapters: generatedChapters.value,
+    exportDate: new Date().toISOString()
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${courseName.value || '未命名教案'}_${new Date().toISOString().split('T')[0]}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+const triggerImport = () => {
+  fileInput.value.click()
+}
+
+const importFromJson = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result)
+      if (data.courseName) courseName.value = data.courseName
+      if (data.weeklySessions !== undefined) weeklySessions.value = data.weeklySessions
+      if (data.sessionsPerPlan !== undefined) sessionsPerPlan.value = data.sessionsPerPlan
+      if (data.totalWeeks !== undefined) totalWeeks.value = data.totalWeeks
+      if (data.outlineContent !== undefined) outlineContent.value = data.outlineContent
+      if (data.generatedChapters && Array.isArray(data.generatedChapters)) {
+        generatedChapters.value = data.generatedChapters
+      }
+      alert('教案导入成功！')
+    } catch (err) {
+      console.error('Failed to parse JSON', err)
+      alert('导入失败，文件格式有误。')
+    }
+  }
+  reader.readAsText(file)
+  event.target.value = ''
+}
+const exportAllDetailedJson = async () => {
+  const allDetails = []
+
+  for (let i = 0; i < generatedChapters.value.length; i++) {
+    const chapter = generatedChapters.value[i]
+    const docId = `${courseName.value}_ch${chapter.id}`
+    const storageKey = `exam_data_v1_plan_${currentModelId.value}_${docId}`
+
+    try {
+      const cached = await localforage.getItem(storageKey)
+      let detail = cached
+      if (!detail) {
+        detail = {
+          "授课课题": courseName.value || '课题名称',
+          "子章节": chapter.mainTitle || chapter.title || '',
+          "编号": `第 ${i + 1} 号`,
+          "课时安排": `${sessionsPerPlan.value} 课时`,
+          "授课形式": chapter.teachingMode || "理论课",
+          "摘要": chapter.summary || '',
+          "知识与技能": "",
+          "过程与方法": "",
+          "情感、态度、价值观": "",
+          "教学重点": "",
+          "教学难点": "",
+          "教学方法": "",
+          "媒介": "",
+          "教学过程": [],
+          "学习资料": "",
+          "课后小结": ""
+        }
+      } else if (typeof detail === 'string') {
+        detail = JSON.parse(detail)
+      }
+
+      // 添加元数据以便后续导入还原
+      detail.__meta = {
+        chapterId: chapter.id,
+        index: i
+      }
+      allDetails.push(detail)
+    } catch (e) {
+      console.error(`Failed to load chapter ${chapter.id}`, e)
+    }
+  }
+
+  const exportPackage = {
+    type: 'batch_detailed_lesson_plans',
+    version: '1.0',
+    courseName: courseName.value,
+    weeklySessions: weeklySessions.value,
+    sessionsPerPlan: sessionsPerPlan.value,
+    totalWeeks: totalWeeks.value,
+    outlineContent: outlineContent.value,
+    plans: allDetails
+  }
+
+  const blob = new Blob([JSON.stringify(exportPackage, null, 2)], { type: 'application/json' })
+  const fileName = `${courseName.value || '教案'}_详细教案合集_${new Date().toISOString().split('T')[0]}.json`
+  saveAs(blob, fileName)
+}
+
+const triggerDetailedImport = () => {
+  detailedFileInput.value.click()
+}
+
+const importAllDetailedJson = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    try {
+      const pkg = JSON.parse(e.target.result)
+      if (pkg.type !== 'batch_detailed_lesson_plans' && !Array.isArray(pkg)) {
+        alert('导入的文件格式不正确，请确保是使用“导出全量详细教案”生成的 JSON。')
+        return
+      }
+
+      const plans = Array.isArray(pkg) ? pkg : pkg.plans
+
+      if (pkg.courseName) courseName.value = pkg.courseName
+      if (pkg.weeklySessions !== undefined) weeklySessions.value = pkg.weeklySessions
+      if (pkg.sessionsPerPlan !== undefined) sessionsPerPlan.value = pkg.sessionsPerPlan
+      if (pkg.totalWeeks !== undefined) totalWeeks.value = pkg.totalWeeks
+
+      // 更新大纲
+      generatedChapters.value = plans.map((p, i) => {
+        const meta = p.__meta || {}
+        return {
+          id: meta.chapterId || Date.now() + i,
+          mainTitle: p['授课课题'] || '无标题',
+          subTitle: p['子章节'] || '',
+          summary: p['摘要'] || '',
+          teachingMode: p['授课形式'] || '理论课'
+        }
+      })
+
+      // 异步保存详细内容到 localforage
+      for (const plan of plans) {
+        const meta = plan.__meta || {}
+        const chapterId = meta.chapterId || generatedChapters.value[plans.indexOf(plan)].id
+        const docId = `${courseName.value}_ch${chapterId}`
+        const storageKey = `exam_data_v1_plan_${currentModelId.value}_${docId}`
+
+        const cleanPlan = { ...plan }
+        delete cleanPlan.__meta
+        await localforage.setItem(storageKey, cleanPlan)
+      }
+
+      alert('所有详细教案已成功导入并存入本地缓存！')
+    } catch (err) {
+      console.error('Import failed', err)
+      alert('导入失败：' + err.message)
+    }
+  }
+  reader.readAsText(file)
+  event.target.value = ''
+}
+
 </script>
 
 <template>
@@ -374,6 +544,28 @@ const handleAIUpdate = (newChapters) => {
 
     <ServiceModal v-if="showServiceModal" @close="showServiceModal = false" />
     <LoginModal v-if="showLoginModal" @close="showLoginModal = false" />
+
+    <!-- Side Fixed Toolbar -->
+    <div class="results-side-toolbar" v-if="generatedChapters.length > 0 && !isGenerating">
+      <button class="side-action-btn outline-export" @click="exportToJson" title="仅导出教案大纲结构">
+        📤 导出大纲
+      </button>
+      <button class="side-action-btn detail-export" @click="exportAllDetailedJson" title="导出包含所有编辑详情的全量教案">
+        ✨ 导出全量详细
+      </button>
+      
+      <div class="side-separator"></div>
+      
+      <button class="side-action-btn outline-import" @click="triggerImport" title="导入教案大纲结构">
+        📥 导入大纲
+      </button>
+      <button class="side-action-btn detail-import" @click="triggerDetailedImport" title="导入包含编辑详情的全量教案合集">
+        📥 导入全量详细
+      </button>
+
+      <input type="file" ref="fileInput" @change="importFromJson" accept=".json" style="display: none;" />
+      <input type="file" ref="detailedFileInput" @change="importAllDetailedJson" accept=".json" style="display: none;" />
+    </div>
   </div>
 
 </template>
@@ -1086,5 +1278,81 @@ input:focus {
   background: #f3e5f5;
   transform: translateY(-2px);
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Side Toolbar Styles */
+.results-side-toolbar {
+  position: fixed;
+  right: 20px;
+  top: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+  animation: fadeInRight 0.5s ease-out;
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.side-action-btn {
+  background: white;
+  border: 2px solid #2c3e50;
+  padding: 10px 15px;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  cursor: pointer;
+  font-size: 0.95em;
+  color: #2c3e50;
+  font-family: inherit;
+  font-weight: bold;
+  transition: all 0.2s;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.1);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.side-action-btn:hover {
+  transform: scale(1.05) translateX(-5px);
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.15);
+}
+
+.outline-export { color: #27ae60; border-color: #27ae60; }
+.detail-export { color: #8e44ad; border-color: #8e44ad; }
+.outline-import { color: #3498db; border-color: #3498db; }
+.detail-import { color: #e67e22; border-color: #e67e22; }
+
+.side-separator {
+  height: 2px;
+  background: #ddd;
+  margin: 5px 0;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .results-side-toolbar {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: white;
+    border: 1px dashed #ccc;
+    box-shadow: none;
+  }
+  .side-action-btn:hover {
+    transform: translateY(-2px);
+  }
 }
 </style>
