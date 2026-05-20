@@ -10,6 +10,10 @@ const props = defineProps({
   isPPT: {
     type: Boolean,
     default: false
+  },
+  isExam: {
+    type: Boolean,
+    default: false
   }
 })
 const emit = defineEmits(['export-pdf', 'export-word', 'export-ppt', 'export-json', 'import-json', 'save-template', 'load-template', 'reset-data', 'open-settings'])
@@ -57,6 +61,10 @@ const appVersion = 'v1.0.0'
       
       <button v-if="isLessonPlan" @click="$emit('export-word')">📄 导出 Word</button>
       <button v-else-if="isPPT" @click="$emit('export-ppt')">📽️ 导出 PPT</button>
+      <template v-else-if="isExam">
+        <button @click="$emit('export-pdf')">📄 导出 PDF试卷</button>
+        <button @click="$emit('export-word')">📄 导出 Word试卷</button>
+      </template>
       <button v-else @click="$emit('export-pdf')">📄 导出 PDF</button>
 
       <div class="separator"></div>

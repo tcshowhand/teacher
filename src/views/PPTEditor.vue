@@ -4,12 +4,15 @@ import PptxGenJS from 'pptxgenjs'
 import Toolbar from '../components/Toolbar.vue'
 import SettingsModal from '../components/SettingsModal.vue'
 import AIChatAssistant from '../components/AIChatAssistant.vue'
+import PptPreview from '../components/PptPreview.vue'
 import { useRoute } from 'vue-router'
 import { sendToQwenAIDialogue } from '../api/qwenAPI'
 import { useSettingsStore } from '../store/settings'
 import localforage from 'localforage'
 import { DEFAULT_MODEL_ID } from '../config/models'
 import { saveAs } from 'file-saver'
+
+const activeSlideIndex = ref(0)
 
 const settings = useSettingsStore()
 const route = useRoute()
@@ -210,6 +213,7 @@ const confirmGeneratePPT = async () => {
         }
         const parsed = JSON.parse(clean)
         pptData.value = parsed
+        activeSlideIndex.value = 0
       } catch (e) {
         console.error('Failed to parse AI PPT response', e)
         alert('生成失败，请重试。')
@@ -309,10 +313,14 @@ const addSlide = () => {
         content: ['输入内容...'],
         note: ''
     })
+    activeSlideIndex.value = pptData.value.slides.length - 1
 }
 
 const removeSlide = (index) => {
     pptData.value.slides.splice(index, 1)
+    if (activeSlideIndex.value >= pptData.value.slides.length) {
+        activeSlideIndex.value = Math.max(0, pptData.value.slides.length - 1)
+    }
 }
 </script>
 
@@ -338,16 +346,31 @@ const removeSlide = (index) => {
     </div>
 
     <div class="content-area" v-if="pptData">
-        <div class="slide-editor" v-for="(slide, index) in pptData.slides" :key="index">
+        <!-- 集成全新的 PPT 涂鸦风 16:9 可视化实时预览器 -->
+        <PptPreview 
+            :slides="pptData.slides"
+            v-model="activeSlideIndex"
+            :ppt-title="pptData.title"
+            :ppt-subtitle="pptData.subtitle"
+        />
+
+        <!-- 页面卡片式编辑器 -->
+        <div 
+            class="slide-editor" 
+            v-for="(slide, index) in pptData.slides" 
+            :key="index"
+            :class="{ 'active-edit-card': index === activeSlideIndex }"
+            @focusin="activeSlideIndex = index"
+        >
             <div class="slide-header">
-                <span class="slide-num">#{{ index + 1 }}</span>
+                <span class="slide-num">#{{ index + 1 }} 页 {{ index === activeSlideIndex ? '(当前编辑)' : '' }}</span>
                 <button class="del-btn" @click="removeSlide(index)">×</button>
             </div>
             <div class="slide-content">
                 <input v-model="slide.title" class="slide-title-input" placeholder="页面标题" />
                 <textarea 
-                    v-if="Array.isArray(slide.content)"
-                    :value="slide.content.join('\n')"
+                    v-if="slide.layout !== 'Title' && slide.layout !== 'Cover'"
+                    :value="Array.isArray(slide.content) ? slide.content.join('\n') : slide.content"
                     @input="e => slide.content = e.target.value.split('\n')"
                     class="slide-body-input"
                     placeholder="内容要点 (每行一点)"
@@ -516,6 +539,12 @@ const removeSlide = (index) => {
     box-shadow: 8px 8px 0 rgba(44, 62, 80, 0.1);
     position: relative;
     transition: all 0.2s;
+}
+.slide-editor.active-edit-card {
+    border-color: #1abc9c;
+    border-width: 3px;
+    box-shadow: 8px 8px 0 rgba(26, 188, 156, 0.25);
+    background: #fdfdfd;
 }
 .slide-editor:hover {
     transform: rotate(0.5deg);

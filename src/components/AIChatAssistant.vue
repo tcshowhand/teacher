@@ -216,6 +216,7 @@ const renderMarkdown = (text) => {
   border: 2px solid #2c3e50;
   font-family: 'Architects Daughter', cursive, sans-serif;
   animation: slideUp 0.3s ease-out;
+  z-index: 9999;
 }
 
 .chat-window {

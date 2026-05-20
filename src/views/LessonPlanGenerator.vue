@@ -264,15 +264,285 @@ const importFromJson = (event) => {
       if (data.generatedChapters && Array.isArray(data.generatedChapters)) {
         generatedChapters.value = data.generatedChapters
       }
-      alert('教案导入成功！')
+      alert('教案大纲导入成功！')
     } catch (err) {
-      console.error('Failed to parse JSON', err)
-      alert('导入失败，文件格式有误。')
+      console.error('导入失败', err)
+      alert('导入失败：' + err.message)
     }
   }
   reader.readAsText(file)
   event.target.value = ''
 }
+
+// ------------------ 一键全链路批量后台生成系统 ------------------
+const generationStatuses = ref({})
+const isBatchGenerating = ref(false)
+const batchCurrentIndex = ref(0)
+const batchTotalCount = ref(0)
+
+const generateAllForChapter = async (chapter, index) => {
+  if (generationStatuses.value[chapter.id]?.status === 'plan' || 
+      generationStatuses.value[chapter.id]?.status === 'exam' || 
+      generationStatuses.value[chapter.id]?.status === 'ppt') {
+    return // 正在生成中，防重复触发
+  }
+
+  // 初始化状态
+  generationStatuses.value[chapter.id] = {
+    status: 'plan',
+    errorMsg: '',
+    progress: 10,
+    planData: null,
+    examData: null,
+    pptData: null
+  }
+
+  const docId = `${courseName.value}_ch${chapter.id}`
+  const educationLevel = settings.educationLevel || '通用'
+
+  try {
+    // ------------------ 阶段一：研制教案 ------------------
+    const planPrompt = `请为一个课程生成详细的教案 JSON 数据。
+    课程名称：${courseName.value}
+    章节名称：${chapter.mainTitle}
+    子章节：${chapter.subTitle || ''}
+    课时安排：${sessionsPerPlan.value} 课时
+    授课形式：${chapter.teachingMode || '理论课'}
+    适用学段：${educationLevel}
+    备课摘要/设计意图：${chapter.summary || ''}
+
+    请注意：该教案需符合《教案检查》的要求，重点关注以下方面：
+    1. 教学目标应明确、具体、恰当，并涵盖知识、技能、情感态度价值观三个维度。
+    2. 教学内容要深入挖掘思政教育元素，与大纲要求一致，突出重点、难点，合理分解与衔接。
+    3. 教学过程要突出互动与探究，体现学生主动参与与思考。 
+    4. 教学设计需体现思政融入、新知识引入得当、教学进度科学、环节安排合理，体现最新教学理念。
+    5. 教学方法应以学生为中心，体现互动性与探究性，采用新颖的教学手段。
+    6. 编写规范需严格按照学校统一格式，书写认真细致，无错漏。
+    7. 教案要有创新性，体现互动与探究，有利于培养学生实践能力和创新精神。
+
+    请严格按照以下 JSON 格式返回，不要包含 markdown 标记代码块：
+    {
+      "授课课题": "${courseName.value}",
+      "子章节": "${chapter.mainTitle}",
+      "编号": "第 ${index + 1} 号",
+      "课时安排": "${sessionsPerPlan.value} 课时",
+      "授课形式": "${chapter.teachingMode || '理论课'}",
+      "摘要": "${chapter.summary || ''}", 
+      "知识与技能": "...",
+      "过程与方法": "...",
+      "情感、态度、价值观": "...",
+      "教学重点": "...",
+      "教学难点": "...",
+      "教学方法": "...",
+      "媒介": "...",
+      "教学过程": [
+         ["导入新课", "通过生活实例引入本章核心概念..."],
+         ["讲授新知", "深入剖析本节课的关键知识点并结合板书示范..."],
+         ["互动研讨", "设计小组讨论活动，引导学生探究式学习..."],
+         ["实操演练", "布置堂上任务让学生动手实践，巩固所学..."]
+      ],
+      "学习资料": "课本与补充在线案例",
+      "课后小结": "本节课教学效果良好，学生基本掌握核心目标，个别难点需在下节课进一步强化。"
+    }`
+
+    const planMessages = [{ role: 'user', content: planPrompt }]
+    let planText = ''
+    
+    await new Promise((resolve, reject) => {
+      sendToQwenAIDialogue(planMessages, (text, isComplete) => {
+        planText = text
+        if (isComplete) {
+          try {
+            const cleanText = planText.replace(/```json/g, '').replace(/```/g, '').trim()
+            if (cleanText.includes('API Key not configured') || cleanText.includes('请先配置 API Key')) {
+              showApiKeyAlertModal.value = true
+              reject(new Error('DashScope API Key 未配置或失效'))
+              return
+            }
+            const parsed = JSON.parse(cleanText)
+            resolve(parsed)
+          } catch (e) {
+            reject(new Error('教案大模型返回格式有误，无法解析 JSON'))
+          }
+        }
+      })
+    }).then(async (parsedPlan) => {
+      generationStatuses.value[chapter.id].planData = parsedPlan
+      generationStatuses.value[chapter.id].progress = 40
+      const planStorageKey = `exam_data_v1_plan_${currentModelId.value}_${docId}`
+      await localforage.setItem(planStorageKey, parsedPlan)
+    })
+
+    // ------------------ 阶段二：命制配套试题 ------------------
+    generationStatuses.value[chapter.id].status = 'exam'
+    const planData = generationStatuses.value[chapter.id].planData
+    const questionCount = settings.examQuestionCount || 5
+    
+    const examPrompt = `请为课程《${courseName.value}》的章节《${chapter.mainTitle} - ${chapter.subTitle || ''}》生成一份包含 ${questionCount} 道题目的配套课后测试卷数据。
+    
+    【教案背景上下文参考】
+    - 教学重点：${planData['教学重点'] || '无'}
+    - 教学难点：${planData['教学难点'] || '无'}
+    - 摘要说明：${planData['摘要'] || '无'}
+    
+    请严格按照以下 JSON 格式返回，不要包含 markdown 标记代码块：
+    {
+      "title": "${courseName.value} - ${chapter.mainTitle} 课后测验",
+      "info": ["姓名: _______________", "学号: _______________", "得分: ___________"],
+      "footer": "~ 本章测验结束，请老师认真批阅 ~",
+      "problems": [
+        {
+          "qNum": "Q1.",
+          "title": "题目名称",
+          "tags": "核心知识点",
+          "desc": "详细且具有探究性的题目描述...",
+          "input": "输入样例(如非编程题请直接省略此字段)",
+          "output": "输出样例(如非编程题请直接省略此字段)"
+        }
+      ]
+    }
+    注意：如果属于程序设计或代码类教学，请务必提供 input 和 output 样例；若为理论课、语文、数学等常规课程，请务必在 JSON 中省略 input/output 字段。`
+
+    const examMessages = [{ role: 'user', content: examPrompt }]
+    let examText = ''
+
+    await new Promise((resolve, reject) => {
+      sendToQwenAIDialogue(examMessages, (text, isComplete) => {
+        examText = text
+        if (isComplete) {
+          try {
+            const cleanText = examText.replace(/```json/g, '').replace(/```/g, '').trim()
+            if (cleanText.includes('API Key not configured') || cleanText.includes('请先配置 API Key')) {
+              showApiKeyAlertModal.value = true
+              reject(new Error('DashScope API Key 未配置或失效'))
+              return
+            }
+            const parsed = JSON.parse(cleanText)
+            if (parsed.problems) {
+              parsed.problems.forEach(p => {
+                if (!p.image) p.image = ""
+              })
+            }
+            resolve(parsed)
+          } catch (e) {
+            reject(new Error('试卷大模型返回格式有误，无法解析 JSON'))
+          }
+        }
+      })
+    }).then(async (parsedExam) => {
+      generationStatuses.value[chapter.id].examData = parsedExam
+      generationStatuses.value[chapter.id].progress = 70
+      const examStorageKey = `exam_paper_data_v1_${currentModelId.value}_${docId}`
+      await localforage.setItem(examStorageKey, parsedExam)
+    })
+
+    // ------------------ 阶段三：编排 PPT 课件 ------------------
+    generationStatuses.value[chapter.id].status = 'ppt'
+    let lessonPlanContext = ''
+    if (planData) {
+      lessonPlanContext = `
+      【教案上下文】
+      - 教学重点：${planData['教学重点'] || '无'}
+      - 教学难点：${planData['教学难点'] || '无'}
+      - 教学方法：${planData['教学方法'] || '无'}
+      - 课后小结：${planData['课后小结'] || '无'}
+      `
+      if (planData['教学过程'] && Array.isArray(planData['教学过程'])) {
+        let teachingProcess = '\n- 教学过程：\n'
+        planData['教学过程'].forEach((process, pIndex) => {
+          if (Array.isArray(process) && process.length >= 2) {
+            teachingProcess += `  ${pIndex + 1}. ${process[0]}: ${process[1]}\n`
+          }
+        })
+        lessonPlanContext += teachingProcess
+      }
+    }
+
+    const pptPrompt = `请为课程《${courseName.value}》章节《${chapter.mainTitle} - ${chapter.subTitle || ''}》设计并编排一份 PPT 大纲演示内容。
+    
+    【参考教案信息】
+    ${lessonPlanContext}
+    
+    【生成要求】
+    1. 需生成 7 - 9 页左右的精美幻灯片。
+    2. 第一页必须是封面 (Cover)，包含主标题和副标题。
+    3. 最后一页是结束页 (Cover/Title)。
+    4. 中间页为具体讲授环节，布局设计需包含 title (标题)、content (要点列表数组) 以及 note (演讲备注说明)。
+    5. 严格以 JSON 格式返回，不要包含 markdown 标记代码块。
+
+    JSON 格式示例：
+    {
+      "title": "${courseName.value} - ${chapter.mainTitle}",
+      "slides": [
+        { "layout": "Title", "title": "${courseName.value} - ${chapter.mainTitle}", "subtitle": "${chapter.subTitle || ''}" },
+        { "layout": "Content", "title": "本章教学目标与重点", "content": ["目标1: 掌握基本概念与运行机制", "目标2: 理解关键难点并学会分析"], "note": "本页向学生阐明学习重心，点拨核心难点。" }
+      ]
+    }`
+
+    const pptMessages = [{ role: 'user', content: pptPrompt }]
+    let pptText = ''
+
+    await new Promise((resolve, reject) => {
+      sendToQwenAIDialogue(pptMessages, (text, isComplete) => {
+        pptText = text
+        if (isComplete) {
+          try {
+            const cleanText = pptText.replace(/```json/g, '').replace(/```/g, '').trim()
+            if (cleanText.includes('API Key not configured') || cleanText.includes('请先配置 API Key')) {
+              showApiKeyAlertModal.value = true
+              reject(new Error('DashScope API Key 未配置或失效'))
+              return
+            }
+            const parsed = JSON.parse(cleanText)
+            resolve(parsed)
+          } catch (e) {
+            reject(new Error('PPT 大模型返回格式有误，无法解析 JSON'))
+          }
+        }
+      })
+    }).then(async (parsedPpt) => {
+      generationStatuses.value[chapter.id].pptData = parsedPpt
+      generationStatuses.value[chapter.id].progress = 100
+      generationStatuses.value[chapter.id].status = 'done'
+      const pptStorageKey = `ppt_data_v1_${currentModelId.value}_${docId}`
+      await localforage.setItem(pptStorageKey, parsedPpt)
+    })
+
+  } catch (error) {
+    console.error('备课包生成出错:', error)
+    generationStatuses.value[chapter.id].status = 'error'
+    generationStatuses.value[chapter.id].errorMsg = error.message || '生成中断'
+  }
+}
+
+const batchGenerateAllChapters = async () => {
+  if (isBatchGenerating.value) return
+  if (generatedChapters.value.length === 0) {
+    alert('当前大纲没有任何章节，请先在上方录入大纲框架！')
+    return
+  }
+
+  isBatchGenerating.value = true
+  batchTotalCount.value = generatedChapters.value.length
+  batchCurrentIndex.value = 0
+
+  for (let i = 0; i < generatedChapters.value.length; i++) {
+    const chapter = generatedChapters.value[i]
+    batchCurrentIndex.value = i + 1
+
+    // 智能平滑滚动到当前备课卡片，增强全自动沉浸式视觉交互体验
+    const cardEl = document.querySelector(`.chapters-grid .chapter-card:nth-child(${i + 1})`)
+    if (cardEl) {
+      cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    await generateAllForChapter(chapter, i)
+  }
+
+  isBatchGenerating.value = false
+  alert('🎉 恭喜！全课程全套“教案 + 试题 + PPT课件”已全部自动研制生成并存入缓存！')
+}
+
 const exportAllDetailedJson = async () => {
   const allDetails = []
 
@@ -456,6 +726,10 @@ const importAllDetailedJson = (event) => {
     <div class="results-section" v-if="generatedChapters.length > 0">
       <div class="results-header">
         <h2>生成结果</h2>
+        <button class="batch-gen-btn" @click="batchGenerateAllChapters" :disabled="isBatchGenerating">
+          <span v-if="isBatchGenerating">⚡ 批量备课中 (第 {{ batchCurrentIndex }}/{{ batchTotalCount }} 章)...</span>
+          <span v-else>⚡ AI 一键全自动批量备课 (教案+试题+课件)</span>
+        </button>
       </div>
       <div class="chapters-grid">
         <div v-for="(chapter, index) in generatedChapters" :key="chapter.id" class="chapter-card">
@@ -479,20 +753,39 @@ const importAllDetailedJson = (event) => {
 
             <!-- Summary -->
             <textarea v-model="chapter.summary" class="editable-summary" placeholder="摘要内容..."></textarea>
+            
+            <!-- 备课包全自动后台生成状态指示器 -->
+            <div v-if="generationStatuses[chapter.id]" class="gen-status-box" :class="generationStatuses[chapter.id].status">
+              <div class="gen-status-header">
+                <span class="gen-status-text">
+                  <span v-if="generationStatuses[chapter.id].status === 'plan'">⏳ 正在研制教案 ({{ generationStatuses[chapter.id].progress }}%)</span>
+                  <span v-else-if="generationStatuses[chapter.id].status === 'exam'">⏳ 正在命制试题 ({{ generationStatuses[chapter.id].progress }}%)</span>
+                  <span v-else-if="generationStatuses[chapter.id].status === 'ppt'">⏳ 正在排版课件 ({{ generationStatuses[chapter.id].progress }}%)</span>
+                  <span v-else-if="generationStatuses[chapter.id].status === 'done'">✅ 备课全套制作完成</span>
+                  <span v-else-if="generationStatuses[chapter.id].status === 'error'">❌ 制作失败: {{ generationStatuses[chapter.id].errorMsg }}</span>
+                </span>
+              </div>
+              <div class="gen-progress-bar">
+                <div class="gen-progress-fill" :style="{ width: generationStatuses[chapter.id].progress + '%' }"></div>
+              </div>
+            </div>
           </div>
+          
           <div class="actions">
-            <button class="action-btn plan-btn" @click="goToExam(chapter, index, 'lesson_plan')">
-              教案编辑
+            <!-- 主操作：一键全套独占一行 -->
+            <button class="action-btn quick-gen-btn action-btn-full"
+                    @click="generateAllForChapter(chapter, index)"
+                    :disabled="generationStatuses[chapter.id]?.status === 'plan' || generationStatuses[chapter.id]?.status === 'exam' || generationStatuses[chapter.id]?.status === 'ppt'"
+                    title="一次性在后台生成该章节的完整配套教案、试卷和课件">
+              ⚡ 一键全套备课（教案+试题+课件）
             </button>
-            <button class="action-btn exam-btn" @click="goToExam(chapter, index, 'exam')">
-              试题编辑
-            </button>
-            <button class="action-btn ppt-btn" @click="goToExam(chapter, index, 'ppt')">
-              生成 PPT
-            </button>
-            <button class="action-btn insert-action-btn" @click="addChapterAfter(index)" title="在此教案后插入新教案">
-              ↓ 新增
-            </button>
+            <!-- 次级操作：四个按钮分两列 -->
+            <div class="actions-secondary">
+              <button class="action-btn plan-btn" @click="goToExam(chapter, index, 'lesson_plan')">📖 教案编辑</button>
+              <button class="action-btn exam-btn" @click="goToExam(chapter, index, 'exam')">📝 试题编辑</button>
+              <button class="action-btn ppt-btn" @click="goToExam(chapter, index, 'ppt')">💻 PPT课件</button>
+              <button class="action-btn insert-action-btn" @click="addChapterAfter(index)" title="在此教案后插入新教案">↓ 新增</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1080,25 +1373,39 @@ input:focus {
 
 .actions {
   display: flex;
-  gap: 15px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actions-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
 }
 
 .action-btn {
   flex: 1;
-  padding: 10px;
+  padding: 8px 6px;
   border: 2px solid #2c3e50;
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 1em;
+  font-size: 0.85em;
   transition: all 0.2s;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-family: inherit;
   background: white;
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+.action-btn-full {
+  width: 100%;
+  font-size: 0.9em;
+  padding: 9px 10px;
 }
 
 .plan-btn {
@@ -1354,5 +1661,119 @@ input:focus {
   .side-action-btn:hover {
     transform: translateY(-2px);
   }
+}
+
+/* 一键全套 & 全局批量备课 Neo-brutalism 漫画涂鸦风格样式 */
+.batch-gen-btn {
+  padding: 10px 22px;
+  font-size: 0.9em;
+  background: #ffeb3b;
+  color: #2c3e50;
+  border: 3px solid #2c3e50;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  cursor: pointer;
+  font-weight: bold;
+  font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 4px 4px 0 #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-gen-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px) rotate(-1deg);
+  box-shadow: 6px 6px 0 #2c3e50;
+  background: #fff176;
+}
+
+.batch-gen-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #2c3e50;
+}
+
+.batch-gen-btn:disabled {
+  background: #eee;
+  color: #888;
+  border-color: #aaa;
+  box-shadow: none;
+  cursor: wait;
+}
+
+.quick-gen-btn {
+  color: #e91e63 !important;
+  border-color: #e91e63 !important;
+  background: #fff0f5 !important;
+}
+
+.quick-gen-btn:hover:not(:disabled) {
+  background: #ffe4e1 !important;
+  transform: translateY(-3px) rotate(1deg);
+  box-shadow: 4px 4px 0 rgba(233, 30, 99, 0.25) !important;
+}
+
+.quick-gen-btn:disabled {
+  background: #f5f5f5 !important;
+  color: #aaa !important;
+  border-color: #ccc !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+.gen-status-box {
+  margin-top: 15px;
+  padding: 12px;
+  border: 2px dashed #2c3e50;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 0.85em;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);
+}
+
+.gen-status-box.done {
+  border-color: #2ec4b6;
+  background: #eefdfa;
+  border-style: solid;
+}
+
+.gen-status-box.error {
+  border-color: #e74c3c;
+  background: #fdf2f0;
+  border-style: solid;
+}
+
+.gen-status-header {
+  font-weight: bold;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gen-progress-bar {
+  height: 12px;
+  background: #e0e0e0;
+  border: 2px solid #2c3e50;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.gen-progress-fill {
+  height: 100%;
+  background: #ffeb3b;
+  transition: width 0.4s ease;
+  border-right: 2px solid #2c3e50;
+}
+
+.gen-status-box.done .gen-progress-fill {
+  background: #2ec4b6;
+}
+
+.gen-status-box.error .gen-progress-fill {
+  background: #e74c3c;
 }
 </style>

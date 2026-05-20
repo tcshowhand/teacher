@@ -501,6 +501,41 @@ const handleAIUpdate = (newData) => {
     examData.value[key] = newData[key]
   })
 }
+
+// -------- 教案 Word 模板可视化切换器 --------
+const showTemplateDrawer = ref(false)
+
+const TEMPLATE_PREVIEWS = [
+  {
+    id: 'anyou',
+    displayName: '🏫 学期结束版',
+    desc: '适合学期末汇报检查，包含完整课程总结与反思栏，格式严谨，是教研检查的首选格式。',
+    colorTag: '#e74c3c',
+    bgColor: '#fff5f5',
+    icon: '📋',
+    badge: '教研检查首选'
+  },
+  {
+    id: 'anyou2',
+    displayName: '🌱 学期开始版',
+    desc: '适合学期初备课规划，突出教学目标设计，结构简洁清晰，适合日常教学自用备忘。',
+    colorTag: '#27ae60',
+    bgColor: '#f0fff4',
+    icon: '📝',
+    badge: '日常备课推荐'
+  }
+]
+
+const selectWordTemplate = async (templateId) => {
+  if (templateId === currentModelId.value) {
+    showTemplateDrawer.value = false
+    return
+  }
+  currentModelId.value = templateId
+  localStorage.setItem('last_active_model_id', templateId)
+  await loadCurrentData()
+  showTemplateDrawer.value = false
+}
 </script>
 
 
@@ -509,6 +544,44 @@ const handleAIUpdate = (newData) => {
     <div class="home-link">
       <router-link to="/">返回首页</router-link>
     </div>
+
+    <!-- 教案 Word 模板可视化切换抽屉触发按钮 -->
+    <button class="template-drawer-fab" @click="showTemplateDrawer = !showTemplateDrawer" title="切换 Word 导出模板">
+      🎨 模板风格
+    </button>
+
+    <!-- 侧边抽屉遮罩层 -->
+    <transition name="fade-overlay">
+      <div v-if="showTemplateDrawer" class="drawer-overlay" @click.self="showTemplateDrawer = false"></div>
+    </transition>
+
+    <!-- 侧边模板抽屉面板 -->
+    <transition name="slide-drawer">
+      <div v-if="showTemplateDrawer" class="template-drawer">
+        <div class="drawer-header">
+          <h3>🖨️ 选择 Word 导出模板</h3>
+          <button class="drawer-close-btn" @click="showTemplateDrawer = false">✕</button>
+        </div>
+        <p class="drawer-subtitle">点击下方卡片即可切换当前教案的 Word 导出格式</p>
+        <div class="template-cards">
+          <div
+            v-for="tpl in TEMPLATE_PREVIEWS"
+            :key="tpl.id"
+            class="tpl-card"
+            :class="{ 'tpl-card--active': currentModelId === tpl.id }"
+            :style="{ background: tpl.bgColor, borderColor: tpl.colorTag }"
+            @click="selectWordTemplate(tpl.id)"
+          >
+            <div class="tpl-badge" :style="{ background: tpl.colorTag }">{{ tpl.badge }}</div>
+            <div class="tpl-icon">{{ tpl.icon }}</div>
+            <div class="tpl-name" :style="{ color: tpl.colorTag }">{{ tpl.displayName }}</div>
+            <p class="tpl-desc">{{ tpl.desc }}</p>
+            <div class="tpl-check" v-if="currentModelId === tpl.id">✅ 当前使用中</div>
+          </div>
+        </div>
+        <div class="drawer-tip">💡 切换模板后，点击工具栏的"导出 Word"按钮即可使用新模板导出</div>
+      </div>
+    </transition>
 
     <Toolbar 
       :is-lesson-plan="true"
@@ -918,5 +991,200 @@ const handleAIUpdate = (newData) => {
   to { transform: translateX(20px) rotate(10deg); }
 }
 
+/* -------- 教案 Word 模板可视化切换抽屉样式 -------- */
+.template-drawer-fab {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: #8e44ad;
+  color: white;
+  border: 2px solid white;
+  border-radius: 30px;
+  padding: 12px 22px;
+  font-size: 1em;
+  font-weight: bold;
+  font-family: 'Architects Daughter', cursive;
+  box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
+  cursor: pointer;
+  z-index: 900;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
 
+.template-drawer-fab:hover {
+  transform: scale(1.08) rotate(-2deg);
+  box-shadow: 0 6px 20px rgba(142, 68, 173, 0.5);
+  background: #9b59b6;
+}
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 62, 80, 0.35);
+  z-index: 1100;
+  backdrop-filter: blur(2px);
+}
+
+.template-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 360px;
+  background: #fdfbf7;
+  border-left: 3px solid #2c3e50;
+  box-shadow: -8px 0 30px rgba(0,0,0,0.15);
+  z-index: 1200;
+  padding: 30px 24px;
+  overflow-y: auto;
+  font-family: 'Architects Daughter', cursive;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-header h3 {
+  font-size: 1.3em;
+  font-weight: bold;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.drawer-close-btn {
+  background: none;
+  border: 2px solid #e74c3c;
+  color: #e74c3c;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  font-size: 1em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.drawer-close-btn:hover {
+  background: #e74c3c;
+  color: white;
+  transform: scale(1.15);
+}
+
+.drawer-subtitle {
+  font-size: 0.9em;
+  color: #7f8c8d;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.template-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.tpl-card {
+  border: 3px solid;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.tpl-card:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 7px 7px 0 rgba(0,0,0,0.15);
+}
+
+.tpl-card--active {
+  box-shadow: 6px 6px 0 rgba(0,0,0,0.2);
+  transform: translate(-2px, -2px);
+}
+
+.tpl-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: white;
+  font-size: 0.72em;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: 'Architects Daughter', cursive;
+}
+
+.tpl-icon {
+  font-size: 2.2em;
+  margin-bottom: 8px;
+}
+
+.tpl-name {
+  font-size: 1.15em;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.tpl-desc {
+  font-size: 0.88em;
+  color: #555;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.tpl-check {
+  font-size: 0.88em;
+  font-weight: bold;
+  color: #27ae60;
+  border-top: 1px dashed #ccc;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.drawer-tip {
+  font-size: 0.82em;
+  color: #888;
+  background: #f0f0f0;
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  padding: 12px;
+  line-height: 1.5;
+}
+
+/* 抽屉滑入动画 */
+.slide-drawer-enter-active,
+.slide-drawer-leave-active {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-drawer-enter-from,
+.slide-drawer-leave-to {
+  transform: translateX(100%);
+}
+
+/* 遮罩淡入动画 */
+.fade-overlay-enter-active,
+.fade-overlay-leave-active {
+  transition: opacity 0.25s;
+}
+
+.fade-overlay-enter-from,
+.fade-overlay-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 768px) {
+  .template-drawer {
+    width: 100vw;
+  }
+}
 </style>

@@ -10,6 +10,7 @@ import jsPDF from 'jspdf'
 import { saveAs } from 'file-saver'
 import localforage from 'localforage'
 import { useRoute } from 'vue-router'
+import { exportExamToWord } from '../utils/exportExamWord'
 
 import { sendToQwenAIDialogue } from '../api/qwenAPI'
 
@@ -248,6 +249,19 @@ const handleExportPDF = async () => {
   }
 }
 
+const handleExportWord = async () => {
+  if (!examData.value) return
+  isExporting.value = true
+  try {
+    await exportExamToWord(examData.value)
+  } catch (error) {
+    console.error('Word Export Failed:', error)
+    alert('导出 Word 失败')
+  } finally {
+    isExporting.value = false
+  }
+}
+
 const handleExportJSON = () => {
   const blob = new Blob([JSON.stringify(examData.value, null, 2)], { type: 'application/json' })
   const now = new Date()
@@ -432,7 +446,9 @@ const handleAIUpdate = (newData) => {
     </div>
 
     <Toolbar 
+      :is-exam="true"
       @export-pdf="handleExportPDF" 
+      @export-word="handleExportWord"
       @export-json="handleExportJSON"
       @save-template="handleSaveTemplate"
       @load-template="handleLoadTemplate"
