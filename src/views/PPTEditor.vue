@@ -33,7 +33,6 @@ const templateName = ref('')
 const TEMPLATES_KEY = 'ppt_templates_v1'
 const lessonContext = ref('')
 
-// Init
 const createEmptyPPT = (title = '新幻灯片') => ({
   title: title,
   subtitle: '副标题',
@@ -48,7 +47,6 @@ const createEmptyPPT = (title = '新幻灯片') => ({
 const getStorageKey = (docId) => `ppt_data_v1_${currentModelId.value}_${docId}`
 
 onMounted(async () => {
-  // Load Templates
   try {
     const cached = await localforage.getItem(TEMPLATES_KEY)
     if (cached) savedTemplates.value = JSON.parse(JSON.stringify(cached))
@@ -56,7 +54,6 @@ onMounted(async () => {
     console.error(e)
   }
 
-  // Determine Doc ID
   const { courseName, chapterId } = route.query
   if (courseName && chapterId) {
     currentDocId.value = `${courseName}_ppt_ch${chapterId}`
@@ -64,11 +61,9 @@ onMounted(async () => {
     currentDocId.value = 'default_ppt'
   }
 
-  // Load Data
   const storageKey = getStorageKey(currentDocId.value)
   const cachedData = await localforage.getItem(storageKey)
   
-  // Initialize with cache or empty
   if (cachedData) {
     pptData.value = cachedData
   } else {
@@ -145,7 +140,6 @@ const confirmGeneratePPT = async () => {
       const lessonPlanData = await localforage.getItem(lessonPlanStorageKey)
       
       if (lessonPlanData) {
-        // 构建完整的教案上下文
         lessonPlanContext = `
 【完整教案信息】
 - 授课课题：${lessonPlanData['授课课题'] || '无'}
@@ -161,7 +155,7 @@ const confirmGeneratePPT = async () => {
 - 学习资料：${lessonPlanData['学习资料'] || '无'}
 - 课后小结：${lessonPlanData['课后小结'] || '无'}
 `
-        // 如果有教学过程，也添加进去
+
         if (lessonPlanData['教学过程'] && Array.isArray(lessonPlanData['教学过程'])) {
           let teachingProcess = '\n- 教学过程：\n'
           lessonPlanData['教学过程'].forEach((process, index) => {
@@ -222,20 +216,16 @@ const confirmGeneratePPT = async () => {
   })
 }
 
-// Export PPT
 const handleExportPPT = () => {
   try {
     const pres = new PptxGenJS()
     
-    // Set Metadata
     pres.title = pptData.value.title
     pres.author = pptData.value.author || 'Teacher'
 
-    // Add Slides
     pptData.value.slides.forEach(slide => {
       const s = pres.addSlide()
       
-      // Background / Theme (Simple)
       s.background = { color: 'F1F1F1' }
 
       if (slide.layout === 'Title' || slide.layout === 'Cover') {
@@ -248,7 +238,6 @@ const handleExportPPT = () => {
           fontSize: 18, align: 'center', color: '666666' 
         })
       } else {
-        // Content Slide
         s.addText(slide.title, { 
           x: 0.5, y: 0.5, w: '90%', h: 1, 
           fontSize: 24, bold: true, color: '363636',
@@ -265,7 +254,6 @@ const handleExportPPT = () => {
         }
       }
 
-      // Notes
       if (slide.note) s.addNotes(slide.note)
     })
 
@@ -346,7 +334,6 @@ const removeSlide = (index) => {
     </div>
 
     <div class="content-area" v-if="pptData">
-        <!-- 集成全新的 PPT 涂鸦风 16:9 可视化实时预览器 -->
         <PptPreview 
             :slides="pptData.slides"
             v-model="activeSlideIndex"
@@ -354,7 +341,6 @@ const removeSlide = (index) => {
             :ppt-subtitle="pptData.subtitle"
         />
 
-        <!-- 页面卡片式编辑器 -->
         <div 
             class="slide-editor" 
             v-for="(slide, index) in pptData.slides" 
@@ -376,7 +362,6 @@ const removeSlide = (index) => {
                     placeholder="内容要点 (每行一点)"
                 ></textarea>
                 <div v-else>
-                    <!-- Cover Slide Case -->
                      <input v-model="slide.subtitle" class="slide-subtitle-input" placeholder="副标题" />
                 </div>
                 <textarea v-model="slide.note" class="slide-note-input" placeholder="演讲备注..."></textarea>
@@ -388,7 +373,6 @@ const removeSlide = (index) => {
     
     <div v-else class="loading">Loading...</div>
 
-    <!-- AI Generation Confirmation Modal -->
     <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
         <h3>AI 一键生成</h3>
@@ -400,7 +384,6 @@ const removeSlide = (index) => {
       </div>
     </div>
 
-    <!-- AI Chat -->
     <AIChatAssistant 
       v-model="showAIChat" 
       :currentContent="pptData"
@@ -409,7 +392,6 @@ const removeSlide = (index) => {
     />
     <button class="ai-chat-fab" @click="showAIChat = !showAIChat">🤖 PPT助手</button>
 
-    <!-- Settings Modal -->
     <SettingsModal 
        v-if="showSettingsModal" 
        :currentModelId="currentModelId"
@@ -418,7 +400,6 @@ const removeSlide = (index) => {
        @close="showSettingsModal = false" 
     />
 
-    <!-- Save Modal -->
     <div class="modal-overlay" v-if="showSaveModal">
         <div class="modal-content">
             <h3>💾 保存PPT模板</h3>
@@ -430,20 +411,18 @@ const removeSlide = (index) => {
         </div>
     </div>
     
-    <!-- API Key Alert -->
     <div class="modal-overlay" v-if="showApiKeyAlertModal">
         <div class="modal-content">
-            <h3>⚠️ 请配置 API Key</h3>
+            <h3>请配置 API Key</h3>
             <div class="modal-actions">
                 <button class="modal-btn confirm" @click="showApiKeyAlertModal = false; showSettingsModal = true">去配置</button>
             </div>
         </div>
     </div>
     
-    <!-- AI Generate Confirm Modal -->
     <div class="modal-overlay" v-if="showAIGenConfirmModal">
         <div class="modal-content">
-            <h3>⚠️ 确认生成PPT</h3>
+            <h3>确认生成PPT</h3>
             <p style="color: #666; margin: 15px 0;">当前已有内容，AI 生成将覆盖现有内容。继续吗？</p>
             <div class="modal-actions">
                 <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
@@ -456,7 +435,6 @@ const removeSlide = (index) => {
 </template>
 
 <style scoped>
-/* Global Consistency Styles */
 .app-container {
     padding: 20px 20px 100px 20px;
     background-color: #fdfbf7;
@@ -657,7 +635,6 @@ const removeSlide = (index) => {
 
 .loading { text-align: center; margin-top: 50px; font-size: 1.5em; color: #999; }
 
-/* Modal Styles Reuse Global */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;

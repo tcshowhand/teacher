@@ -41,7 +41,6 @@ const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value
 }
 
-// 键盘左右方向键监听翻页
 const handleKeyDown = (e) => {
   if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
     nextSlide()
@@ -70,18 +69,15 @@ onUnmounted(() => {
 
 <template>
   <div class="ppt-preview-container" :class="{ 'is-fullscreen': isFullscreen }">
-    <!-- 全屏模式下的深色遮罩头部 -->
     <div class="fullscreen-header" v-if="isFullscreen">
       <span class="fs-title">📺 幻灯片放映预览 - {{ pptTitle }}</span>
       <span class="fs-info">提示：使用键盘 ← / → 方向键或空格键翻页，Esc 退出</span>
       <button class="exit-fs-btn" @click="isFullscreen = false">退出放映 ×</button>
     </div>
 
-    <!-- 16:9 幻灯片本体卡片 -->
     <div class="slide-aspect-card">
       <div class="slide-body" v-if="slides && slides.length > 0 && slides[modelValue]">
         <div class="slide-inner">
-          <!-- 布局 1: 封面或标题页 (Cover / Title) -->
           <div 
             v-if="slides[modelValue].layout === 'Title' || slides[modelValue].layout === 'Cover' || modelValue === 0"
             class="layout-cover"
@@ -94,11 +90,9 @@ onUnmounted(() => {
             <span class="cover-badge">PRESENTATION</span>
           </div>
 
-          <!-- 布局 2: 经典内容页 (Content / Default) -->
           <div v-else class="layout-content">
             <h2 class="slide-title">{{ slides[modelValue].title }}</h2>
             <div class="content-body">
-              <!-- 列表内容点渲染 -->
               <ul class="points-list" v-if="Array.isArray(slides[modelValue].content)">
                 <li v-for="(line, idx) in slides[modelValue].content" :key="idx" class="point-item">
                   <span class="point-marker">✏️</span>
@@ -113,7 +107,6 @@ onUnmounted(() => {
               </div>
             </div>
             
-            <!-- 备注提醒栏 (仅非全屏下优雅展示，全屏下作为小文字点缀) -->
             <div class="slide-bottom-bar">
               <span class="page-footer-tag">豫唐智能备课平台</span>
               <span class="slide-page-num">{{ modelValue + 1 }} / {{ slides.length }}</span>
@@ -128,7 +121,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 底部控制器 (非全屏下展示) -->
     <div class="preview-controls" v-if="slides && slides.length > 0">
       <button class="ctrl-btn text-btn" @click="prevSlide" :disabled="modelValue === 0">
         上一步 (←)
@@ -162,7 +154,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 整个容器样式 */
 .ppt-preview-container {
   width: 100%;
   max-width: 900px;
@@ -172,7 +163,6 @@ onUnmounted(() => {
   gap: 15px;
 }
 
-/* 16:9 响应式比例卡片样式 - 标志性手绘 Neo-brutalism 风格 */
 .slide-aspect-card {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -216,7 +206,6 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
-/* 布局一：封面大字报效果 */
 .layout-cover {
   height: 100%;
   display: flex;
@@ -264,7 +253,6 @@ onUnmounted(() => {
   box-shadow: 2px 2px 0 rgba(0,0,0,0.15);
 }
 
-/* 布局二：正文页排版 */
 .layout-content {
   height: 100%;
   display: flex;
@@ -327,7 +315,6 @@ onUnmounted(() => {
   font-style: italic;
 }
 
-/* 底部状态条 */
 .slide-bottom-bar {
   display: flex;
   justify-content: space-between;
@@ -339,7 +326,6 @@ onUnmounted(() => {
   color: #7f8c8d;
 }
 
-/* 预览控制器控制栏 */
 .preview-controls {
   display: flex;
   justify-content: space-between;
@@ -405,7 +391,6 @@ onUnmounted(() => {
   gap: 10px;
 }
 
-/* 页数与指示点组合 */
 .indicator-group {
   display: flex;
   flex-direction: column;
@@ -438,7 +423,6 @@ onUnmounted(() => {
   background: #2c3e50;
 }
 
-/* 全屏模式下的深度遮罩 */
 .is-fullscreen {
   position: fixed;
   top: 0;

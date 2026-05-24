@@ -17,7 +17,6 @@ export function login(username, password) {
     })
 }
 
-// Get WeChat Scan QRCode
 export function getWechatQrcode() {
     return request({
         url: '/zb_users/plugin/YtUser/login_official_api.php?act=get_qrcode',
@@ -25,7 +24,6 @@ export function getWechatQrcode() {
     })
 }
 
-// Check WeChat Login Status
 export function checkWechatLogin(sceneId) {
     return request({
         url: '/zb_users/plugin/YtUser/login_official_api.php?act=check_login',

@@ -44,7 +44,6 @@ const showApiKeyAlertModal = ref(false)
 
 const route = useRoute()
 
-// Helper to create empty exam structure
 const createEmptyExam = (title = '新试题') => ({
   title: title,
   subTitle: '考试时间：__分钟  满分：__分',
@@ -78,11 +77,9 @@ const loadCurrentData = async () => {
   }
 
   if (!loaded) {
-    // Default initialization logic
     let title = route.query.title || currentDocId.value
     let subTitle = ''
     
-    // Attempt to sync with Generator State if applicable
     const { courseName, chapterId } = route.query
     if (courseName && chapterId) {
         const GENERATOR_STORAGE_KEY = 'lesson_plan_generator_state_v3'
@@ -118,7 +115,6 @@ const loadCurrentData = async () => {
 
 onMounted(async () => {
 
-  // 1. Load Templates
   try {
     const cachedTemplates = await localforage.getItem(TEMPLATES_KEY)
     if (cachedTemplates) {
@@ -128,7 +124,6 @@ onMounted(async () => {
     console.error('Failed to load templates', e)
   }
 
-  // 2. Determine Document ID (Persistence Key)
   const { courseName, chapterId } = route.query
   
   if (courseName && chapterId) {
@@ -141,11 +136,9 @@ onMounted(async () => {
   
   localStorage.setItem(LAST_ACTIVE_KEY, currentDocId.value)
 
-  // 3. Load Data
   await loadCurrentData()
 })
 
-// Auto-save to local storage (IndexedDB)
 watch(examData, async (newVal) => {
   if (newVal && currentDocId.value) {
     try {
@@ -540,7 +533,7 @@ const handleAIUpdate = (newData) => {
 
     <div class="modal-overlay" v-if="showLoadConfirmModal" style="z-index: 2200;">
       <div class="modal-content">
-        <h3>📖 确认加载？</h3>
+        <h3>确认加载？</h3>
         <p v-if="pendingLoadTemplate">确定要加载模板 "<b>{{ pendingLoadTemplate.name }}</b>" 吗？<br>当前未保存的修改将会丢失。</p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showLoadConfirmModal = false">取消</button>
@@ -681,7 +674,6 @@ const handleAIUpdate = (newData) => {
   color: #666;
 }
 
-/* Modal Styles Global */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -758,7 +750,6 @@ const handleAIUpdate = (newData) => {
   border-style: dashed;
 }
 
-/* Template List */
 .load-modal {
   max-width: 500px;
 }
@@ -796,6 +787,8 @@ const handleAIUpdate = (newData) => {
   position: fixed;
   bottom: 20px;
   right: 20px;
+  width: 60px;
+  height: 60px;
   background: #2c3e50;
   color: white;
   border: none;
@@ -807,7 +800,7 @@ const handleAIUpdate = (newData) => {
   cursor: pointer;
   z-index: 900;
   transition: transform 0.2s;
-  font-family: 'Architects Daughter', cursive;
+  font-family: var(--handwriting-font);
   border: 2px solid white;
 }
 

@@ -30,7 +30,6 @@ const messages = ref([
 ])
 const chatContainer = ref(null)
 
-// Auto-scroll to bottom
 const scrollToBottom = async () => {
   await nextTick()
   if (chatContainer.value) {
@@ -55,11 +54,9 @@ const sendMessage = async () => {
   inputMessage.value = ''
   isLoading.value = true
 
-  // Determine expected type
   const isArray = Array.isArray(props.currentContent)
   const expectedFormat = isArray ? 'JSON 数组 ([...])' : 'JSON 对象 ({...})'
 
-  // Construct System Prompt
   const prompt = `${props.systemContext}
 当前内容的 JSON 数据如下：
 ${JSON.stringify(props.currentContent)}
@@ -69,7 +66,7 @@ ${JSON.stringify(props.currentContent)}
 请根据用户的指令修改上述内容。
 如果需要修改，请按照以下格式回复：
 1. 先回复一句简短的确认。
-2. 然后在新的行中，使用 markdown 代码块输出完整的、合法的 JSON 数据。
+2. 然后在新的行中，使用代码块输出完整的、合法的 JSON 数据。
 **重要：请务必返回一个标准的 ${expectedFormat}，不要改变最外层的数据结构类型。**
 
 格式示例：
@@ -78,17 +75,15 @@ ${JSON.stringify(props.currentContent)}
 { "key": "value" }
 \`\`\`
 
-如果用户的指令不是修改内容，请正常回答，不要包含 JSON。
+如果用户的指令不是修改内容，请正常回答，不要包含 JSON.
 `
 
-  // Send to AI
   const conversation = [
     { role: 'user', content: prompt }
   ]
 
   let fullResponse = ''
   
-  // Placeholder for streaming
   const assistantMsgIndex = messages.value.push({
     role: 'assistant',
     content: '...'
@@ -100,8 +95,6 @@ ${JSON.stringify(props.currentContent)}
     if (isComplete) {
       isLoading.value = false
       
-      // 1. Try to extract JSON code block (more robust regex)
-      // Matches ```json OR ``` followed by content and ```
       const jsonBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/i
       const match = fullResponse.match(jsonBlockRegex)
       
@@ -110,7 +103,6 @@ ${JSON.stringify(props.currentContent)}
 
       const parseAndSet = (jsonStr) => {
           try {
-              // Simple comment stripper: remove lines starting with whitespace+//
               const cleanStr = jsonStr.replace(/^\s*\/\/.*$/gm, '')
               return JSON.parse(cleanStr)
           } catch (e) {
@@ -120,7 +112,6 @@ ${JSON.stringify(props.currentContent)}
       }
 
       if (match) {
-        // Found JSON block
         jsonContent = parseAndSet(match[1])
         if (jsonContent) {
            displayText = fullResponse.replace(match[0], '').trim()
@@ -129,7 +120,6 @@ ${JSON.stringify(props.currentContent)}
            displayText += '\n\n(❌ 自动更新失败：AI 返回的格式不正确)'
         }
       } else {
-        // Fallback: Try to find standalone JSON object
         const firstBrace = fullResponse.indexOf('{')
         const lastBrace = fullResponse.lastIndexOf('}')
         if (firstBrace >= 0 && lastBrace > firstBrace) {
@@ -142,16 +132,13 @@ ${JSON.stringify(props.currentContent)}
         }
       }
 
-      // Update Chat UI
       messages.value[assistantMsgIndex].content = displayText
 
-      // Apply Update
       if (jsonContent) {
         emit('update-content', jsonContent)
       }
 
     } else {
-       // Streaming updates
        if (fullResponse.includes('```')) {
           const preText = fullResponse.split('```')[0].trim()
           messages.value[assistantMsgIndex].content = preText + '\n(正在生成数据...)'
@@ -162,7 +149,6 @@ ${JSON.stringify(props.currentContent)}
   })
 }
 
-// Render markdown safely
 const renderMarkdown = (text) => {
   return marked.parse(text || '')
 }
@@ -257,46 +243,23 @@ const renderMarkdown = (text) => {
 
 .chat-messages {
   flex: 1;
-  padding: 15px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  background: #fdfbf7;
+  padding: 15px;
+  background: var(--paper-bg);
 }
 
 .message {
   display: flex;
-  gap: 10px;
-  max-width: 90%;
+  margin-bottom: 12px;
+  align-items: flex-start;
 }
 
 .message.user {
-  flex-direction: row-reverse;
-  align-self: flex-end;
+  justify-content: flex-end;
 }
 
-.avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #ddd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2em;
-  flex-shrink: 0;
-  border: 1px solid #999;
-}
-
-.message.assistant .avatar {
-  background: #e1f5fe;
-  border-color: #4fc3f7;
-}
-
-.message.user .avatar {
-  background: #fff9c4;
-  border-color: #fbc02d;
+.message.assistant {
+  justify-content: flex-start;
 }
 
 .bubble {
@@ -308,6 +271,7 @@ const renderMarkdown = (text) => {
   line-height: 1.4;
   word-wrap: break-word;
   box-shadow: 2px 2px 0 rgba(0,0,0,0.05);
+  font-family: var(--handwriting-font);
 }
 
 .message.user .bubble {
@@ -336,31 +300,43 @@ textarea {
   padding: 8px;
   border: 2px solid #ddd;
   border-radius: 8px;
-  font-family: inherit;
+  font-family: var(--handwriting-font);
   outline: none;
 }
 
 textarea:focus {
-  border-color: #2c3e50;
+  border-color: var(--accent-color);
 }
 
 button {
-  padding: 0 15px;
-  background: #2c3e50;
+  padding: 8px 15px;
+  background: var(--text-color);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   font-weight: bold;
-  font-family: inherit;
+  font-family: var(--handwriting-font);
+  box-shadow: var(--box-shadow);
+}
+
+button:hover {
+  background: #34495e;
+  transform: scale(1.02);
+}
+
+button:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--box-shadow-active);
 }
 
 button:disabled {
   background: #ccc;
   cursor: wait;
+  transform: none;
+  box-shadow: none;
 }
 
-/* Markdown Styles inside bubble */
 .bubble :deep(p) { margin: 0 0 5px 0; }
 .bubble :deep(p:last-child) { margin-bottom: 0; }
 .bubble :deep(ul), .bubble :deep(ol) { margin: 5px 0; padding-left: 20px; }

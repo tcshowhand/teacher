@@ -12,7 +12,6 @@ const props = defineProps({
   }
 })
 
-// Helper to add a new row to teaching process
 const addProcessRow = () => {
   if (!props.data['教学过程']) {
     props.data['教学过程'] = []
@@ -27,13 +26,12 @@ const removeProcessRow = (index) => {
 
 <template>
   <div class="lesson-plan-paper">
-    <div class="header">
+    <div class="header" id="header">
       <h1 contenteditable @blur="data['授课课题'] = $event.target.innerText">{{ data['授课课题'] || '授课课题' }}</h1>
       <h2 contenteditable @blur="data['子章节'] = $event.target.innerText">{{ data['子章节'] || '子章节标题' }}</h2>
     </div>
 
-    <!-- Summary Area -->
-    <div class="summary-area">
+    <div class="summary-area" id="summary">
       <label>备课摘要/设计意图：</label>
       <div class="summary-content" contenteditable @blur="data['摘要'] = $event.target.innerText">
         {{ data['摘要'] }}
@@ -44,7 +42,7 @@ const removeProcessRow = (index) => {
       </button>
     </div>
 
-    <div class="info-grid">
+    <div class="info-grid" id="info-grid">
       <div class="info-item">
         <label>编号：</label>
         <span contenteditable @blur="data['编号'] = $event.target.innerText">{{ data['编号'] }}</span>
@@ -65,56 +63,56 @@ const removeProcessRow = (index) => {
 
     <hr class="separator" />
 
-    <div class="section">
+    <div class="section" id="knowledge-skills">
       <h3>知识与技能</h3>
       <div class="editable-area" contenteditable @blur="data['知识与技能'] = $event.target.innerText">
         {{ data['知识与技能'] }}
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="process-method">
       <h3>过程与方法</h3>
       <div class="editable-area" contenteditable @blur="data['过程与方法'] = $event.target.innerText">
         {{ data['过程与方法'] }}
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="attitude-values">
       <h3>情感、态度、价值观</h3>
       <div class="editable-area" contenteditable @blur="data['情感、态度、价值观'] = $event.target.innerText">
         {{ data['情感、态度、价值观'] }}
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="teaching-focus">
       <h3>教学重点</h3>
       <div class="editable-area" contenteditable @blur="data['教学重点'] = $event.target.innerText">
         {{ data['教学重点'] }}
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="teaching-difficulty">
       <h3>教学难点</h3>
       <div class="editable-area" contenteditable @blur="data['教学难点'] = $event.target.innerText">
         {{ data['教学难点'] }}
       </div>
     </div>
     
-    <div class="section">
+    <div class="section" id="teaching-method">
       <h3>教学方法</h3>
       <div class="editable-area" contenteditable @blur="data['教学方法'] = $event.target.innerText">
         {{ data['教学方法'] }}
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="media">
       <h3>媒介</h3>
       <div class="editable-area" contenteditable @blur="data['媒介'] = $event.target.innerText">
         {{ data['媒介'] }}
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="teaching-process">
       <h3>教学过程</h3>
       <table class="process-table">
         <thead>
@@ -137,14 +135,14 @@ const removeProcessRow = (index) => {
       <button class="add-btn" @click="addProcessRow">➕ 添加环节</button>
     </div>
 
-    <div class="section">
+    <div class="section" id="learning-materials">
       <h3>学习资料</h3>
       <div class="editable-area" contenteditable @blur="data['学习资料'] = $event.target.innerText">
         {{ data['学习资料'] }}
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" id="after-class-summary">
       <h3>课后小结</h3>
       <div class="editable-area" contenteditable @blur="data['课后小结'] = $event.target.innerText">
         {{ data['课后小结'] }}
@@ -254,7 +252,6 @@ h3 {
   outline: none;
 }
 
-/* Process Table */
 .process-table {
   width: 100%;
   border-collapse: collapse;

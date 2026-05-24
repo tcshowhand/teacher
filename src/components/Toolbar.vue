@@ -43,34 +43,30 @@ const appVersion = 'v1.0.0'
 
 <template>
   <div class="toolbar" :class="{ 'mobile-expanded': isExpanded }">
-    
-    <button class="toggle-btn" @click="isExpanded = !isExpanded">
-      {{ isExpanded ? '❌' : '🛠️' }}
-    </button>
 
     <div class="toolbar-content">
-      <label class="import-btn">
+      <label class="import-btn btn">
         📂 导入 JSON
         <input type="file" accept=".json" @change="handleFileImport" style="display: none;" />
       </label>
 
-      <button @click="$emit('export-json')">💾 导出 JSON</button>
-      <button @click="$emit('save-template')">📑 保存模板</button>
-      <button @click="$emit('load-template')">📁 我的模板</button>
-      <button @click="$emit('reset-data')" style="color: #c0392b; border-color: #c0392b;">🗑️ 重置数据</button>
+      <button class="btn" @click="$emit('export-json')">💾 导出 JSON</button>
+      <button class="btn" @click="$emit('save-template')">📑 保存模板</button>
+      <button class="btn" @click="$emit('load-template')">📁 我的模板</button>
+      <button class="btn btn--danger" @click="$emit('reset-data')">🗑️ 重置数据</button>
       
-      <button v-if="isLessonPlan" @click="$emit('export-word')">📄 导出 Word</button>
-      <button v-else-if="isPPT" @click="$emit('export-ppt')">📽️ 导出 PPT</button>
+      <button v-if="isLessonPlan" class="btn" @click="$emit('export-word')">📄 导出 Word</button>
+      <button v-else-if="isPPT" class="btn" @click="$emit('export-ppt')">📽️ 导出 PPT</button>
       <template v-else-if="isExam">
-        <button @click="$emit('export-pdf')">📄 导出 PDF试卷</button>
-        <button @click="$emit('export-word')">📄 导出 Word试卷</button>
+        <button class="btn" @click="$emit('export-pdf')">📄 导出 PDF试卷</button>
+        <button class="btn" @click="$emit('export-word')">📄 导出 Word试卷</button>
       </template>
-      <button v-else @click="$emit('export-pdf')">📄 导出 PDF</button>
+      <button v-else class="btn" @click="$emit('export-pdf')">📄 导出 PDF</button>
 
       <div class="separator"></div>
 
-      <button @click="showServiceModal = true" style="background: #fff8e1; color: #f39c12;">➕ 友情赞助</button>
-      <button @click="$emit('open-settings')">⚙️ 设置</button>
+      <button class="btn btn--warning" @click="showServiceModal = true">➕ 友情赞助</button>
+      <button class="btn" @click="$emit('open-settings')">⚙️ 设置</button>
       <div class="version-info">版本 {{ appVersion }}</div>
     </div>
     
@@ -103,7 +99,7 @@ const appVersion = 'v1.0.0'
   width: 100%;
 }
 
-button, .import-btn {
+.btn {
   background: var(--paper-bg, #fff);
   border: 2px solid var(--text-color, #2c3e50);
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
@@ -121,6 +117,25 @@ button, .import-btn {
   white-space: nowrap;
 }
 
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--text-color, #2c3e50);
+}
+
+.btn:hover {
+  background: #fff;
+}
+
+.btn--danger {
+  color: #c0392b;
+  border-color: #c0392b;
+}
+
+.btn--warning {
+  background: #fff8e1;
+  color: #f39c12;
+}
+
 .version-info {
   font-size: 0.8em;
   color: #666;
@@ -129,17 +144,29 @@ button, .import-btn {
   font-family: var(--handwriting-font, inherit);
 }
 
-button:active, .import-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--text-color, #2c3e50);
-}
-
-.import-btn:hover, button:hover {
-  background: #fff;
-}
-
 .toggle-btn {
   display: none;
+}
+
+.btn--fab {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.5em;
+  padding: 0;
+  z-index: 101;
+  background: #2c3e50;
+  color: white;
+  border-color: #2c3e50;
+  box-shadow: 2px 4px 8px rgba(0,0,0,0.3);
+}
+
+.btn--fab:hover {
+  background: #34495e;
+  transform: scale(1.1);
 }
 
 @media (max-width: 768px) {
@@ -149,27 +176,6 @@ button:active, .import-btn:active {
     right: 20px;
     flex-direction: column-reverse;
     gap: 15px;
-  }
-
-  .toggle-btn {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    font-size: 1.5em;
-    padding: 0;
-    z-index: 101;
-    background: #2c3e50;
-    color: white;
-    border-color: #2c3e50;
-    box-shadow: 2px 4px 8px rgba(0,0,0,0.3);
-  }
-
-  .toggle-btn:hover {
-    background: #34495e;
-    transform: scale(1.1);
   }
 
   .toolbar-content {

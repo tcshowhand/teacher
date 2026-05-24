@@ -12,8 +12,6 @@ export const useUserStore = defineStore('user', {
         async login(username, password) {
             try {
                 const data = await login(username, password)
-                // Adjust these field names based on actual API response
-                // Assuming API returns { data: { token: '...', user: { ... } } }
                 if (data && data.data && data.data.token) {
                     this.token = data.data.token
                     this.userInfo = data.data.user

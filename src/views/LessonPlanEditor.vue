@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import LessonPlanDetail from '../components/LessonPlanDetail.vue'
 import AIChatAssistant from '../components/AIChatAssistant.vue'
 import Toolbar from '../components/Toolbar.vue'
@@ -42,7 +42,7 @@ const route = useRoute()
 
 const createEmptyLessonPlan = (title, mainTitle = '', subTitle = '', summary = '') => {
   let course, chapter
-  
+
   if (mainTitle && subTitle) {
     course = mainTitle
     chapter = subTitle
@@ -77,76 +77,76 @@ const loadModelData = async (modelId) => {
   if (!model) return null
 
   try {
-      const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/'
-      const response = await fetch(`${baseUrl}${model.jsonTemplate}`)
-      if (!response.ok) throw new Error(`Failed to load template: ${model.jsonTemplate}`)
-      return await response.json()
+    const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/'
+    const response = await fetch(`${baseUrl}${model.jsonTemplate}`)
+    if (!response.ok) throw new Error(`Failed to load template: ${model.jsonTemplate}`)
+    return await response.json()
   } catch (e) {
-      console.error('Failed to load model data', e)
-      alert('加载模型数据失败: ' + e.message)
-      return null
+    console.error('Failed to load model data', e)
+    alert('加载模型数据失败: ' + e.message)
+    return null
   }
 }
 
 const handleModelChange = async (newModelId) => {
-    currentModelId.value = newModelId
-    localStorage.setItem('last_active_model_id', newModelId)
+  currentModelId.value = newModelId
+  localStorage.setItem('last_active_model_id', newModelId)
 
-    await loadCurrentData()
+  await loadCurrentData()
 }
 
 const loadCurrentData = async () => {
-    
-    const storageKey = getStorageKey(currentDocId.value)
-    let loaded = false
 
+  const storageKey = getStorageKey(currentDocId.value)
+  let loaded = false
+
+  try {
+    const cached = await localforage.getItem(storageKey)
+    if (cached) {
+      examData.value = typeof cached === 'string' ? JSON.parse(cached) : cached
+      loaded = true
+    }
+  } catch (e) {
+    console.error('Failed to parse cached data', e)
+  }
+
+  if (!loaded) {
+    const initialData = await loadModelData(currentModelId.value)
+
+    if (initialData) {
+      examData.value = initialData
+    } else {
+      examData.value = createEmptyLessonPlan(currentDocId.value)
+    }
+  }
+
+  const { courseName, chapterId, lessonNumber } = route.query
+  if (courseName && chapterId && examData.value) {
     try {
-        const cached = await localforage.getItem(storageKey)
-        if (cached) {
-            examData.value = typeof cached === 'string' ? JSON.parse(cached) : cached
-            loaded = true
+      const rawState = localStorage.getItem(GENERATOR_STORAGE_KEY)
+      if (rawState) {
+        const state = JSON.parse(rawState)
+        if (state.courseName === courseName || state.courseName === route.query.courseName) {
+          const foundChapter = state.generatedChapters.find(c => c.id === Number(chapterId))
+          if (foundChapter) {
+            examData.value['授课课题'] = foundChapter.mainTitle
+            examData.value['子章节'] = foundChapter.subTitle || ''
+            if (foundChapter.summary) examData.value['摘要'] = foundChapter.summary
+            if (foundChapter.teachingMode) examData.value['授课形式'] = foundChapter.teachingMode
+          }
         }
+      }
     } catch (e) {
-        console.error('Failed to parse cached data', e)
+      console.error('Failed to sync from generator storage', e)
     }
+  }
 
-    if (!loaded) {
-        const initialData = await loadModelData(currentModelId.value)
-
-        if (initialData) {
-            examData.value = initialData
-        } else {
-             examData.value = createEmptyLessonPlan(currentDocId.value)
-        }
-    }
-
-    const { courseName, chapterId, lessonNumber } = route.query
-    if (courseName && chapterId && examData.value) {
-         try {
-            const rawState = localStorage.getItem(GENERATOR_STORAGE_KEY)
-            if (rawState) {
-                const state = JSON.parse(rawState)
-                if (state.courseName === courseName || state.courseName === route.query.courseName) { // Loose match in case of encoding
-                    const foundChapter = state.generatedChapters.find(c => c.id === Number(chapterId))
-                    if (foundChapter) {
-                        examData.value['授课课题'] = foundChapter.mainTitle
-                        examData.value['子章节'] = foundChapter.subTitle || ''
-                        if (foundChapter.summary) examData.value['摘要'] = foundChapter.summary
-                        if (foundChapter.teachingMode) examData.value['授课形式'] = foundChapter.teachingMode
-                    }
-                }
-            }
-        } catch(e) {
-            console.error('Failed to sync from generator storage', e)
-        }
-    }
-
-    let { mainTitle, subTitle, summary, teachingMode } = route.query
-    if (mainTitle) examData.value['授课课题'] = mainTitle
-    if (subTitle) examData.value['子章节'] = subTitle
-    if (summary) examData.value['摘要'] = summary
-    if (teachingMode) examData.value['授课形式'] = teachingMode
-    if (lessonNumber) examData.value['编号'] = `第 ${lessonNumber} 号`
+  let { mainTitle, subTitle, summary, teachingMode } = route.query
+  if (mainTitle) examData.value['授课课题'] = mainTitle
+  if (subTitle) examData.value['子章节'] = subTitle
+  if (summary) examData.value['摘要'] = summary
+  if (teachingMode) examData.value['授课形式'] = teachingMode
+  if (lessonNumber) examData.value['编号'] = `第 ${lessonNumber} 号`
 }
 
 const getStorageKey = (docId) => {
@@ -161,7 +161,7 @@ const syncToGenerator = (courseTitle, chapterTitle, subTitle, teachingMode, summ
     const rawState = localStorage.getItem(GENERATOR_STORAGE_KEY)
     if (rawState) {
       const state = JSON.parse(rawState)
-      
+
       if (state.courseName === courseTitle) {
         const chapter = state.generatedChapters.find(c => c.id === Number(chapterId))
         if (chapter) {
@@ -189,7 +189,7 @@ onMounted(async () => {
   }
 
   const { courseName, chapterId, title, mainTitle, subTitle, summary, teachingMode } = route.query
-  
+
   if (courseName && chapterId) {
     currentDocId.value = `${courseName}_ch${chapterId}`
   } else if (title) {
@@ -197,9 +197,9 @@ onMounted(async () => {
   } else {
     currentDocId.value = localStorage.getItem(LAST_ACTIVE_KEY) || 'default_doc'
   }
-  
+
   localStorage.setItem(LAST_ACTIVE_KEY, currentDocId.value)
-  
+
   const storageKey = getStorageKey(currentDocId.value)
 
   await loadCurrentData()
@@ -210,13 +210,13 @@ watch(examData, async (newVal) => {
   if (newVal && currentDocId.value) {
     try {
       const storageKey = getStorageKey(currentDocId.value)
-      await localforage.setItem(storageKey, JSON.parse(JSON.stringify(newVal))) 
+      await localforage.setItem(storageKey, JSON.parse(JSON.stringify(newVal)))
 
       const { courseName, chapterId } = route.query
       if (courseName && chapterId) {
         syncToGenerator(
-          courseName, 
-          newVal['授课课题'], 
+          courseName,
+          newVal['授课课题'],
           newVal['子章节'],
           newVal['授课形式'],
           newVal['摘要'],
@@ -245,10 +245,10 @@ const handleExportWord = async () => {
 
   try {
     const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/'
-    
+
     const model = LESSON_PLAN_MODELS.find(m => m.id === currentModelId.value) || LESSON_PLAN_MODELS[0]
     const templateFile = model.docxTemplate || '10.docx'
-    
+
     const response = await fetch(`${baseUrl}${templateFile}`);
     if (!response.ok) throw new Error(`Could not find template file ${baseUrl}${templateFile}`);
     const content = await response.arrayBuffer();
@@ -256,31 +256,30 @@ const handleExportWord = async () => {
     const zip = new PizZip(content);
 
     const doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-        delimiters: {
-            start: '[',
-            end: ']'
-        }
+      paragraphLoop: true,
+      linebreaks: true,
+      delimiters: {
+        start: '[',
+        end: ']'
+      }
     });
 
-    // Prepare data
     const data = JSON.parse(JSON.stringify(examData.value));
-    
+
     if (data["教学过程"] && Array.isArray(data["教学过程"])) {
-        data["教学过程"] = data["教学过程"].map(item => {
-            if (Array.isArray(item) && item.length >= 2) {
-                return { "环节名称": item[0], "环节内容": item[1] };
-            }
-            return { "环节名称": "", "环节内容": "" };
-        });
+      data["教学过程"] = data["教学过程"].map(item => {
+        if (Array.isArray(item) && item.length >= 2) {
+          return { "环节名称": item[0], "环节内容": item[1] };
+        }
+        return { "环节名称": "", "环节内容": "" };
+      });
     }
 
     doc.render(data);
 
     const out = doc.getZip().generate({
-        type: "blob",
-        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      type: "blob",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
 
     const now = new Date();
@@ -292,7 +291,7 @@ const handleExportWord = async () => {
     console.error('Word Export Failed:', error);
     let msg = error.message;
     if (error.properties && error.properties.errors) {
-        msg = error.properties.errors.map(e => e.message).join('\n');
+      msg = error.properties.errors.map(e => e.message).join('\n');
     }
     alert('导出 Word 失败:\n' + msg);
   } finally {
@@ -338,8 +337,8 @@ const handleLoadTemplate = () => {
 
 const loadTemplate = (template) => {
   if (template.type !== 'lesson_plan') {
-      alert('无法在教案编辑器中加载试题模板')
-      return
+    alert('无法在教案编辑器中加载试题模板')
+    return
   }
   pendingLoadTemplate.value = template
   showLoadConfirmModal.value = true
@@ -375,8 +374,8 @@ const cancelDeleteTemplate = () => {
 
 const handleImportJSON = (json) => {
   if (!json['授课课题']) {
-      alert('导入的文件似乎不是教案格式')
-      return
+    alert('导入的文件似乎不是教案格式')
+    return
   }
   examData.value = json
 }
@@ -388,10 +387,10 @@ const handleReset = () => {
 const confirmReset = async () => {
   try {
     if (currentDocId.value) {
-        const key = getStorageKey(currentDocId.value)
-        await localforage.removeItem(key)
+      const key = getStorageKey(currentDocId.value)
+      await localforage.removeItem(key)
     }
-    
+
     examData.value = createEmptyLessonPlan(currentDocId.value || '示范课程 - 示范章节')
   } catch (e) {
     console.error('Failed to reset', e)
@@ -417,7 +416,7 @@ const confirmGenerateLessonPlan = async () => {
   const hours = examData.value['课时安排'] || '2 课时'
   const mode = examData.value['授课形式'] || '理论课'
   const educationLevel = settings.educationLevel || '未指定'
-  
+
   const prompt = `请为一个课程生成详细的教案 JSON 数据。
   课程名称：${course}
   章节名称：${chapter}
@@ -436,7 +435,7 @@ const confirmGenerateLessonPlan = async () => {
   8. 教案要有创新性，体现互动与探究，有利于培养学生实践能力和创新精神。
 
   
-  请严格按照以下 JSON 格式返回，不要包含 markdown 标记代码块：
+  请严格按照以下 JSON 格式返回，不要包含代码块标记：
   {
     "授课课题": "${course}",
     "子章节": "${chapter}",
@@ -464,7 +463,7 @@ const confirmGenerateLessonPlan = async () => {
   }`
 
   const messages = [{ role: 'user', content: prompt }]
-  
+
   let fullText = ''
   await sendToQwenAIDialogue(messages, (text, isComplete) => {
     fullText = text
@@ -474,8 +473,8 @@ const confirmGenerateLessonPlan = async () => {
         const cleanText = fullText.replace(/```json/g, '').replace(/```/g, '').trim()
 
         if (cleanText.includes('请先配置 API Key') || cleanText.includes('API Key not configured')) {
-            showApiKeyAlertModal.value = true
-            return
+          showApiKeyAlertModal.value = true
+          return
         }
 
         const newData = JSON.parse(cleanText)
@@ -502,7 +501,7 @@ const handleAIUpdate = (newData) => {
   })
 }
 
-// -------- 教案 Word 模板可视化切换器 --------
+
 const showTemplateDrawer = ref(false)
 
 const TEMPLATE_PREVIEWS = [
@@ -536,8 +535,52 @@ const selectWordTemplate = async (templateId) => {
   await loadCurrentData()
   showTemplateDrawer.value = false
 }
-</script>
 
+const sections = ref([
+  { id: 'header', label: '课题信息' },
+  { id: 'summary', label: '备课摘要' },
+  { id: 'info-grid', label: '基本信息' },
+  { id: 'knowledge-skills', label: '知识与技能' },
+  { id: 'process-method', label: '过程与方法' },
+  { id: 'attitude-values', label: '情感态度价值观' },
+  { id: 'teaching-focus', label: '教学重点' },
+  { id: 'teaching-difficulty', label: '教学难点' },
+  { id: 'teaching-method', label: '教学方法' },
+  { id: 'media', label: '媒介' },
+  { id: 'teaching-process', label: '教学过程' },
+  { id: 'learning-materials', label: '学习资料' },
+  { id: 'after-class-summary', label: '课后小结' }
+])
+
+const scrollToSection = (sectionId) => {
+  const element = document.getElementById(sectionId)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+const activeSection = ref('header')
+const updateActiveSection = () => {
+  const scrollPosition = window.scrollY + 100
+
+  for (let i = sections.value.length - 1; i >= 0; i--) {
+    const section = sections.value[i]
+    const element = document.getElementById(section.id)
+    if (element && element.offsetTop <= scrollPosition) {
+      activeSection.value = section.id
+      break
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', updateActiveSection)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateActiveSection)
+})
+</script>
 
 <template>
   <div class="app-container">
@@ -545,35 +588,35 @@ const selectWordTemplate = async (templateId) => {
       <router-link to="/">返回首页</router-link>
     </div>
 
-    <!-- 教案 Word 模板可视化切换抽屉触发按钮 -->
     <button class="template-drawer-fab" @click="showTemplateDrawer = !showTemplateDrawer" title="切换 Word 导出模板">
-      🎨 模板风格
+      模板风格
     </button>
 
-    <!-- 侧边抽屉遮罩层 -->
+    <div class="sidebar-nav" v-if="examData">
+      <div class="nav-header">教案目录</div>
+      <div v-for="section in sections" :key="section.id" class="nav-item"
+        :class="{ 'active': activeSection === section.id }" @click="scrollToSection(section.id)">
+        {{ section.label }}
+      </div>
+    </div>
+
     <transition name="fade-overlay">
       <div v-if="showTemplateDrawer" class="drawer-overlay" @click.self="showTemplateDrawer = false"></div>
     </transition>
 
-    <!-- 侧边模板抽屉面板 -->
     <transition name="slide-drawer">
       <div v-if="showTemplateDrawer" class="template-drawer">
         <div class="drawer-header">
-          <h3>🖨️ 选择 Word 导出模板</h3>
+          <h3>选择 Word 导出模板</h3>
           <button class="drawer-close-btn" @click="showTemplateDrawer = false">✕</button>
         </div>
         <p class="drawer-subtitle">点击下方卡片即可切换当前教案的 Word 导出格式</p>
         <div class="template-cards">
-          <div
-            v-for="tpl in TEMPLATE_PREVIEWS"
-            :key="tpl.id"
-            class="tpl-card"
+          <div v-for="tpl in TEMPLATE_PREVIEWS" :key="tpl.id" class="tpl-card"
             :class="{ 'tpl-card--active': currentModelId === tpl.id }"
-            :style="{ background: tpl.bgColor, borderColor: tpl.colorTag }"
-            @click="selectWordTemplate(tpl.id)"
-          >
+            :style="{ background: tpl.bgColor, borderColor: tpl.colorTag }" @click="selectWordTemplate(tpl.id)">
             <div class="tpl-badge" :style="{ background: tpl.colorTag }">{{ tpl.badge }}</div>
-            <div class="tpl-icon">{{ tpl.icon }}</div>
+ 
             <div class="tpl-name" :style="{ color: tpl.colorTag }">{{ tpl.displayName }}</div>
             <p class="tpl-desc">{{ tpl.desc }}</p>
             <div class="tpl-check" v-if="currentModelId === tpl.id">✅ 当前使用中</div>
@@ -583,33 +626,30 @@ const selectWordTemplate = async (templateId) => {
       </div>
     </transition>
 
-    <Toolbar 
-      :is-lesson-plan="true"
-      @export-word="handleExportWord" 
-      @export-json="handleExportJSON"
-      @save-template="handleSaveTemplate"
-      @load-template="handleLoadTemplate"
-      @import-json="handleImportJSON"
-      @reset-data="handleReset"
-      @open-settings="showSettingsModal = true"
-    />
-    
+    <Toolbar :is-lesson-plan="true" @export-word="handleExportWord" @export-json="handleExportJSON"
+      @save-template="handleSaveTemplate" @load-template="handleLoadTemplate" @import-json="handleImportJSON"
+      @reset-data="handleReset" @open-settings="showSettingsModal = true" />
+
     <div class="content-area" v-if="examData">
-      <LessonPlanDetail 
-        :data="examData" 
-        :is-generating="isGeneratingPlan"
-        id="lesson-paper-container" 
-        @generate-ai="generateLessonPlan"
-      />
+      <LessonPlanDetail :data="examData" :is-generating="isGeneratingPlan" id="lesson-paper-container"
+        @generate-ai="generateLessonPlan" />
     </div>
     <div v-else class="loading">
       Loading Data...
     </div>
 
-    <div class="modal-overlay" v-if="showSaveModal">
-      <div class="modal-content">
+    <AIChatAssistant v-model="showAIChat" :current-content="examData" system-context="您是一个专业的教案编写助手。请根据用户指令修改教案内容。"
+      @update-content="handleAIUpdate" />
+
+    <button class="ai-chat-fab" @click="showAIChat = !showAIChat" title="AI 助手">
+      对话助手
+    </button>
+    
+    <div class="modal-overlay" v-if="showSaveModal" @click="showSaveModal = false">
+      <div class="modal-content" @click.stop>
         <h3>保存为模板</h3>
-        <input v-model="templateName" placeholder="给模板起个名字..." class="modal-input" @keyup.enter="confirmSaveTemplate" />
+        <p>请输入模板名称：</p>
+        <input v-model="templateName" class="input" placeholder="例如：语文教案模板" @keyup.enter="confirmSaveTemplate" />
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showSaveModal = false">取消</button>
           <button class="modal-btn confirm" @click="confirmSaveTemplate">保存</button>
@@ -617,11 +657,12 @@ const selectWordTemplate = async (templateId) => {
       </div>
     </div>
 
-    <div class="modal-overlay" v-if="showLoadModal">
-      <div class="modal-content load-modal">
+    <div class="modal-overlay" v-if="showLoadModal" @click="showLoadModal = false">
+      <div class="modal-content load-modal" @click.stop>
         <h3>导入模板 (仅展示教案)</h3>
         <div class="template-list" v-if="savedTemplates.filter(t => t.type === 'lesson_plan').length > 0">
-          <div v-for="(template, index) in savedTemplates.filter(t => t.type === 'lesson_plan')" :key="template.id" class="template-item">
+          <div v-for="(template, index) in savedTemplates.filter(t => t.type === 'lesson_plan')" :key="template.id"
+            class="template-item">
             <div class="template-info" @click="loadTemplate(template)">
               <div class="t-name">
                 <span class="tag-plan">教案</span>
@@ -629,7 +670,7 @@ const selectWordTemplate = async (templateId) => {
               </div>
               <div class="t-date">{{ template.date }}</div>
             </div>
-            <button class="delete-template-btn" @click.stop="deleteTemplate(savedTemplates.indexOf(template))" title="删除模板">×</button>
+            <button class="delete-template-btn" @click.stop="deleteTemplate(index)" title="删除模板">×</button>
           </div>
         </div>
         <div v-else class="empty-list">
@@ -640,8 +681,9 @@ const selectWordTemplate = async (templateId) => {
         </div>
       </div>
     </div>
-    <div class="modal-overlay" v-if="showDeleteConfirmModal" style="z-index: 2100;">
-      <div class="modal-content">
+
+    <div class="modal-overlay" v-if="showDeleteConfirmModal" style="z-index: 2100;" @click="cancelDeleteTemplate">
+      <div class="modal-content" @click.stop>
         <h3>确认删除模板？</h3>
         <p>确定要删除这个模板吗？此操作无法撤销。</p>
         <div class="modal-actions">
@@ -651,21 +693,10 @@ const selectWordTemplate = async (templateId) => {
       </div>
     </div>
 
-    <div class="modal-overlay" v-if="showResetConfirmModal" style="z-index: 2100;">
-      <div class="modal-content">
-        <h3>确认重置？</h3>
-        <p>确定要清空所有修改吗？<br>这将恢复到默认状态。此操作无法撤销！</p>
-        <div class="modal-actions">
-          <button class="modal-btn cancel" @click="showResetConfirmModal = false">取消</button>
-          <button class="modal-btn confirm" @click="confirmReset">重置</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-overlay" v-if="showLoadConfirmModal" style="z-index: 2200;">
-      <div class="modal-content">
-        <h3>📖 确认加载？</h3>
-        <p v-if="pendingLoadTemplate">确定要加载模板 "<b>{{ pendingLoadTemplate.name }}</b>" 吗？<br>当前未保存的修改将会丢失。</p>
+    <div class="modal-overlay" v-if="showLoadConfirmModal" style="z-index: 2100;" @click="showLoadConfirmModal = false">
+      <div class="modal-content" @click.stop>
+        <h3>确认加载模板？</h3>
+        <p>加载模板将覆盖当前所有内容。是否继续？</p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showLoadConfirmModal = false">取消</button>
           <button class="modal-btn confirm" @click="confirmLoadTemplate">加载</button>
@@ -673,27 +704,30 @@ const selectWordTemplate = async (templateId) => {
       </div>
     </div>
 
-    <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;">
+    <div class="modal-overlay" v-if="showResetConfirmModal" style="z-index: 2100;"
+      @click="showResetConfirmModal = false">
+      <div class="modal-content" @click.stop>
+        <h3>确认重置？</h3>
+        <p>重置将清空所有内容并恢复到初始状态。是否继续？</p>
+        <div class="modal-actions">
+          <button class="modal-btn cancel" @click="showResetConfirmModal = false">取消</button>
+          <button class="modal-btn confirm" @click="confirmReset">重置</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showAIGenConfirmModal" style="z-index: 2200;"
+      @click="showAIGenConfirmModal = false">
       <div class="modal-content">
-        <h3>AI 一键生成</h3>
-        <p>AI 将根据当前的课题、章节和摘要自动生成完整教案。<br><b>注意：此操作可能会覆盖您已手动输入的内容。</b></p>
+        <h3>✨ AI 智能生成完整教案</h3>
+        <p>AI 将根据当前的课题名称、章节和摘要，为您生成一份完整的教案。</p>
+        <p>这可能需要几秒钟时间，请耐心等待。</p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
           <button class="modal-btn confirm" @click="confirmGenerateLessonPlan">✨ 开始生成</button>
         </div>
       </div>
     </div>
-
-    <AIChatAssistant 
-      v-model="showAIChat" 
-      :currentContent="examData" 
-      systemContext="您是教案编写助手。请根据用户的指令**修改**当前教案的内容（JSON对象）。请保持教案的整体结构，只修改字段的值。"
-      @update-content="handleAIUpdate" 
-    />
-
-    <button class="ai-chat-fab" @click="showAIChat = !showAIChat" title="AI 助手">
-      🤖 对话助手
-    </button>
 
     <div class="modal-overlay" v-if="showApiKeyAlertModal" style="z-index: 2300;">
       <div class="modal-content">
@@ -706,172 +740,61 @@ const selectWordTemplate = async (templateId) => {
       </div>
     </div>
 
-    <div class="modal-overlay" v-if="isExporting" style="z-index: 3000; cursor: wait;">
-      <div class="modal-content" style="max-width: 300px;">
-        <h3>🖨️ 正在导出...</h3>
-        <p>正在努力生成高清 PDF，<br>请稍候片刻...</p>
-        <div class="loading-spinner">✏️</div>
-      </div>
-    </div>
-
-    <SettingsModal 
-      v-if="showSettingsModal" 
-      :currentModelId="currentModelId"
-      :show-model-selector="true"
-      @change-model="handleModelChange"
-      @close="showSettingsModal = false" 
-    />
-
+    <SettingsModal v-if="showSettingsModal" :current-model-id="currentModelId" :show-model-selector="true"
+      @close="showSettingsModal = false" @change-model="handleModelChange" />
   </div>
 </template>
 
 <style scoped>
 .app-container {
   padding: 20px;
+  min-height: 100vh;
 }
+
 .home-link {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 100;
-}
-.home-link a {
-  text-decoration: none;
-  font-weight: bold;
-  color: #2c3e50;
-  background: white;
-  padding: 10px 15px;
-  border-radius: 20px;
-  border: 2px solid #2c3e50;
-  box-shadow: 2px 2px 0 #2c3e50;
-  transition: transform 0.1s;
-}
-.home-link a:hover {
-  transform: scale(1.05);
-}
-
-.model-selector {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 20px;
-  background: white;
-  padding: 5px 15px;
-  border-radius: 20px;
-  border: 2px solid #2c3e50;
-  box-shadow: 2px 2px 0 #2c3e50;
-}
-
-.model-selector label {
-  font-weight: bold;
-  margin-right: 10px;
-  color: #2c3e50;
-}
-
-.model-select {
-  border: none;
-  background: transparent;
-  font-size: 1em;
-  font-family: inherit;
-  font-weight: bold;
-  color: #2c3e50;
-  cursor: pointer;
-  outline: none;
-}
-
-.ai-actions {
-  text-align: center;
   margin-bottom: 20px;
 }
 
-.ai-gen-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 10px 25px;
-  font-size: 1.1em;
-  border-radius: 25px;
-  cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+.home-link a {
+  color: var(--text-color);
+  text-decoration: none;
   font-weight: bold;
+  background: #fff;
+  padding: 10px 15px;
+  border-radius: 20px;
+  border: 2px solid #2c3e50;
+  box-shadow: 2px 2px #2c3e50;
+  transition: transform .1s;
 }
 
-.ai-gen-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 8px rgba(0,0,0,0.2);
-}
-
-.ai-gen-btn:disabled {
-  background: #ccc;
-  cursor: wait;
-}
-
-.tag-plan {
-  background: #e1f5fe;
-  color: #039be5;
-  font-size: 0.8em;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-right: 5px;
+.content-area {
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .loading {
   text-align: center;
-  font-size: 1.5em;
-  margin-top: 100px;
-  color: #666;
+  padding: 50px;
+  font-size: 1.2em;
+  color: var(--text-color);
 }
 
-/* Modal Styles Global */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  backdrop-filter: blur(3px);
-}
-
-.modal-content {
-  background: #fdfbf7;
-  padding: 30px;
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  border: 3px solid #2c3e50;
-  box-shadow: 10px 10px 0 rgba(0,0,0,0.2);
-  width: 90%;
-  max-width: 400px;
-  text-align: center;
-  font-family: 'Architects Daughter', cursive;
-}
-
-.modal-content h3 {
-  font-size: 1.5em;
-  margin-bottom: 20px;
-  border-bottom: 1px dashed #ccc;
-  padding-bottom: 10px;
-}
 
 .ai-chat-fab {
   position: fixed;
   bottom: 20px;
   right: 20px;
   background: #2c3e50;
-  color: white;
-  border: none;
+  color: #fff;
   border-radius: 30px;
   padding: 12px 24px;
   font-size: 1.1em;
-  font-weight: bold;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  font-weight: 700;
+  box-shadow: 0 4px 10px #0000004d;
   cursor: pointer;
   z-index: 900;
-  transition: transform 0.2s;
-  font-family: 'Architects Daughter', cursive;
+  transition: transform .2s;
+  font-family: var(--handwriting-font);
   border: 2px solid white;
 }
 
@@ -880,234 +803,102 @@ const selectWordTemplate = async (templateId) => {
   background: #34495e;
 }
 
-.modal-input {
-  width: 80%;
-  padding: 10px;
-  margin-bottom: 20px;
-  font-size: 1.2em;
-  font-family: inherit;
-  border: 2px solid #2c3e50;
-  border-radius: 5px;
-  outline: none;
-}
 
-.modal-actions {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.modal-btn {
-  padding: 8px 20px;
-  border: 2px solid #2c3e50;
-  background: transparent;
-  font-family: inherit;
-  font-size: 1.1em;
-  cursor: pointer;
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  transition: transform 0.1s;
-}
-
-.modal-btn:hover {
-  transform: scale(1.05);
-}
-
-.modal-btn.confirm {
-  background: #e74c3c;
-  color: white;
-  border-color: #e74c3c;
-}
-
-.modal-btn.cancel {
-  border-style: dashed;
-}
-
-/* Template List */
-.load-modal {
-  max-width: 500px;
-}
-
-.template-list {
-  max-height: 300px;
-  overflow-y: auto;
-  text-align: left;
-}
-
-.template-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.template-item:hover {
-  background: rgba(0,0,0,0.05);
-}
-
-.template-info {
-  flex: 1;
-}
-
-.t-name {
-  font-weight: bold;
-  font-size: 1.1em;
-}
-
-.t-date {
-  font-size: 0.8em;
-  color: #888;
-}
-
-.delete-template-btn {
-  background: transparent;
-  border: none;
-  color: #ccc;
-  font-size: 1.5em;
-  cursor: pointer;
-  padding: 0 10px;
-}
-
-.delete-template-btn:hover {
-  color: #c0392b;
-}
-
-.empty-list {
-  color: #999;
-  padding: 20px;
-}
-
-.loading-spinner {
-  font-size: 3em;
-  animation: writing 1s infinite alternate;
-  margin-top: 20px;
-}
-
-@keyframes writing {
-  from { transform: translateX(-20px) rotate(-10deg); }
-  to { transform: translateX(20px) rotate(10deg); }
-}
-
-/* -------- 教案 Word 模板可视化切换抽屉样式 -------- */
 .template-drawer-fab {
   position: fixed;
-  bottom: 80px;
+  bottom: 90px;
   right: 20px;
-  background: #8e44ad;
-  color: white;
-  border: 2px solid white;
+  background: #2c3e50;
+  color: #fff;
   border-radius: 30px;
-  padding: 12px 22px;
-  font-size: 1em;
-  font-weight: bold;
-  font-family: 'Architects Daughter', cursive;
-  box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
+  padding: 12px 24px;
+  font-size: 1.1em;
+  font-weight: 700;
+  box-shadow: 0 4px 10px #0000004d;
   cursor: pointer;
   z-index: 900;
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform .2s;
+  font-family: var(--handwriting-font);
+  border: 2px solid white;
 }
 
 .template-drawer-fab:hover {
-  transform: scale(1.08) rotate(-2deg);
-  box-shadow: 0 6px 20px rgba(142, 68, 173, 0.5);
-  background: #9b59b6;
+  transform: scale(1.05);
+  background: #c0392b;
 }
 
 .drawer-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(44, 62, 80, 0.35);
-  z-index: 1100;
-  backdrop-filter: blur(2px);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 895;
 }
 
 .template-drawer {
   position: fixed;
-  right: 0;
   top: 0;
-  bottom: 0;
-  width: 360px;
-  background: #fdfbf7;
-  border-left: 3px solid #2c3e50;
-  box-shadow: -8px 0 30px rgba(0,0,0,0.15);
-  z-index: 1200;
-  padding: 30px 24px;
+  right: 0;
+  width: 320px;
+  height: 100vh;
+  background: white;
+  padding: 20px;
+  z-index: 900;
   overflow-y: auto;
-  font-family: 'Architects Daughter', cursive;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 .drawer-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #2c3e50;
 }
 
 .drawer-header h3 {
-  font-size: 1.3em;
-  font-weight: bold;
-  color: #2c3e50;
   margin: 0;
+  color: #2c3e50;
 }
 
 .drawer-close-btn {
-  background: none;
-  border: 2px solid #e74c3c;
-  color: #e74c3c;
-  border-radius: 50%;
-  width: 34px;
-  height: 34px;
-  font-size: 1em;
+  background: transparent;
+  border: none;
+  font-size: 1.5em;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  font-family: inherit;
-}
-
-.drawer-close-btn:hover {
-  background: #e74c3c;
-  color: white;
-  transform: scale(1.15);
+  color: #2c3e50;
 }
 
 .drawer-subtitle {
+  margin-bottom: 20px;
+  color: #666;
   font-size: 0.9em;
-  color: #7f8c8d;
-  margin: 0;
-  line-height: 1.4;
 }
 
 .template-cards {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 15px;
 }
 
 .tpl-card {
-  border: 3px solid;
-  border-radius: 12px;
-  padding: 20px;
+  padding: 15px;
+  border: 2px solid #ccc;
+  border-radius: 10px;
   cursor: pointer;
+  transition: all 0.2s;
   position: relative;
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 4px 4px 0 rgba(0,0,0,0.1);
-  overflow: hidden;
 }
 
 .tpl-card:hover {
   transform: translate(-3px, -3px);
-  box-shadow: 7px 7px 0 rgba(0,0,0,0.15);
+  box-shadow: 7px 7px 0 rgba(0, 0, 0, 0.15);
 }
 
 .tpl-card--active {
-  box-shadow: 6px 6px 0 rgba(0,0,0,0.2);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.2);
   transform: translate(-2px, -2px);
 }
 
@@ -1120,7 +911,7 @@ const selectWordTemplate = async (templateId) => {
   font-weight: bold;
   padding: 3px 10px;
   border-radius: 20px;
-  font-family: 'Architects Daughter', cursive;
+  font-family: var(--handwriting-font);
 }
 
 .tpl-icon {
@@ -1160,7 +951,6 @@ const selectWordTemplate = async (templateId) => {
   line-height: 1.5;
 }
 
-/* 抽屉滑入动画 */
 .slide-drawer-enter-active,
 .slide-drawer-leave-active {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1171,7 +961,6 @@ const selectWordTemplate = async (templateId) => {
   transform: translateX(100%);
 }
 
-/* 遮罩淡入动画 */
 .fade-overlay-enter-active,
 .fade-overlay-leave-active {
   transition: opacity 0.25s;
@@ -1182,9 +971,56 @@ const selectWordTemplate = async (templateId) => {
   opacity: 0;
 }
 
+.sidebar-nav {
+  position: fixed;
+  top: 120px;
+  left: 20px;
+  right: auto;
+  width: 180px;
+  background: var(--paper-bg);
+  border: 2px dashed var(--text-color);
+  border-radius: 10px;
+  padding: 15px;
+  z-index: 900;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.nav-header {
+  font-weight: bold;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--text-color);
+  text-align: center;
+  font-size: 0.9em;
+}
+
+.nav-item {
+  padding: 6px 10px;
+  margin: 4px 0;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+  color: var(--text-color);
+}
+
+.nav-item:hover {
+  background: rgba(230, 126, 34, 0.1);
+  transform: translateX(-2px);
+}
+
+.nav-item.active {
+  background: var(--accent-color);
+  color: white;
+  font-weight: bold;
+  border-right: 3px solid white;
+}
+
 @media (max-width: 768px) {
-  .template-drawer {
-    width: 100vw;
+  .sidebar-nav {
+    display: none;
   }
 }
 </style>

@@ -15,7 +15,6 @@ const fileInput = ref(null)
 const triggerImageUpload = () => {
   fileInput.value.click()
 }
-// ... rest of script
 
 const handleImageChange = (event) => {
   const file = event.target.files[0]
@@ -44,17 +43,14 @@ const handleImageChange = (event) => {
 
     <div class="q-image-container" v-if="question.image" @click="triggerImageUpload" title="点击替换图片">
       <img :src="question.image" alt="Question Image" class="q-image" />
-      <div class="image-overlay">📷 更换图片</div>
+      <div class="image-overlay">更换图片</div>
     </div>
     <div class="q-image-placeholder" v-else @click="triggerImageUpload" title="点击上传图片">
-       📷 添加图片
+       添加图片
     </div>
     <input type="file" ref="fileInput" accept="image/*" style="display: none" @change="handleImageChange">
 
     <div class="q-desc">
-      <!-- Using v-html for initial render, processing edits might need complexity. 
-           For simplicity, we assume text editing. If HTML is needed, we prefer not to break structure.
-           Let's just bind text for safety or allow innerHTML edit. -->
       <div class="desc-content" contenteditable @blur="question.desc = $event.target.innerHTML" v-html="question.desc"></div>
     </div>
 
@@ -72,7 +68,6 @@ const handleImageChange = (event) => {
 </template>
 
 <style scoped>
-/* ... existing styles ... */
 .q-image-container {
   position: relative;
   display: inline-block;
@@ -157,7 +152,6 @@ const handleImageChange = (event) => {
   box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
 }
 
-/* ... (desc-content) ... */
 .desc-content {
   line-height: 1.6;
   margin-bottom: 15px;
@@ -172,7 +166,6 @@ const handleImageChange = (event) => {
   border: 1px solid rgba(0,0,0,0.05);
 }
 
-/* ... (io-block) ... */
 .io-block {
   flex: 1;
 }

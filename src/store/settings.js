@@ -12,7 +12,6 @@ const defaultSettings = {
 
 const settings = reactive({ ...defaultSettings })
 
-// Load from localStorage
 const stored = localStorage.getItem(STORE_KEY)
 if (stored) {
     try {
@@ -22,7 +21,6 @@ if (stored) {
     }
 }
 
-// Watch and save
 watch(settings, (newVal) => {
     localStorage.setItem(STORE_KEY, JSON.stringify(newVal))
 }, { deep: true })

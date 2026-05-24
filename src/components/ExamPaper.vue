@@ -17,7 +17,7 @@ const addQuestion = () => {
     qNum: `Q${props.examData.problems.length + 1}.`,
     title: '新题目',
     tags: '算法 / 数据结构',
-    image: '', // No image by default
+    image: '', 
     desc: '点击编辑描述...',
     input: '1 2 3',
     output: '6'
@@ -71,7 +71,6 @@ const cancelDelete = () => {
       <p contenteditable @blur="examData.footer = $event.target.innerText">{{ examData.footer }}</p>
     </div>
 
-    <!-- Custom Delete Confirmation Modal -->
     <div class="modal-overlay" v-if="deleteModalVisible">
       <div class="modal-content">
         <h3>🗑️ 确认删除？</h3>
@@ -218,10 +217,10 @@ const cancelDelete = () => {
   padding: 8px 20px;
   border: 2px solid var(--text-color);
   background: transparent;
-  font-family: inherit;
+  font-family: var(--handwriting-font);
   font-size: 1.1em;
   cursor: pointer;
-  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  border-radius: var(--border-radius);
   transition: transform 0.1s;
 }
 
@@ -235,17 +234,14 @@ const cancelDelete = () => {
   border-color: var(--highlight-color);
 }
 
-
 .modal-btn.cancel {
   border-style: dashed;
 }
 
-/* Hide image placeholder when exporting to PDF */
 .exam-paper.exporting :deep(.q-image-placeholder) {
   display: none !important;
 }
 
-/* Also hide the add button when exporting just in case */
 .exam-paper.exporting .add-section {
   display: none !important;
 }

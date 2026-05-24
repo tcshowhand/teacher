@@ -1,8 +1,6 @@
-// Worker implementation
 self.onmessage = async (event) => {
     const { taskId, messages, userApiKey, model, API_URL } = event.data;
 
-    // Simple validation
     if (!userApiKey) {
         self.postMessage({ taskId, isComplete: true, result: '请先配置 API Key' });
         return;
@@ -63,7 +61,6 @@ self.onmessage = async (event) => {
                             self.postMessage({ taskId, isComplete: false, result: currentText });
                         }
                     } catch (err) {
-                        // Ignore parse errors for partial chunks
                     }
                 }
             }

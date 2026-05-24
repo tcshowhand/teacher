@@ -6,7 +6,7 @@ import { getWechatQrcode, checkWechatLogin } from '../api/auth'
 const userStore = useUserStore()
 const emit = defineEmits(['close'])
 
-const loginMode = ref('account') // 'account' or 'wechat'
+const loginMode = ref('account') 
 const username = ref('')
 const password = ref('')
 const isLoading = ref(false)
@@ -77,7 +77,6 @@ const startPolling = () => {
         try {
             const res = await checkWechatLogin(sceneId.value)
             if (res.status === 1) {
-                // Login Success
                 if (res.data && res.data.token) {
                     userStore.token = res.data.token
                     userStore.userInfo = res.data.user
@@ -126,7 +125,6 @@ onUnmounted(() => {
         {{ errorMessage }}
       </div>
 
-      <!-- Account Login Form -->
       <div v-if="loginMode === 'account'">
           <div class="form-group">
             <label>用户名</label>
@@ -157,7 +155,6 @@ onUnmounted(() => {
           </div>
       </div>
       
-      <!-- WeChat Scan Form -->
       <div v-if="loginMode === 'wechat'" class="wechat-login-container">
           <div v-if="isLoading && !qrcodeUrl" class="loading-tips">正在获取二维码...</div>
           <img v-if="qrcodeUrl" :src="qrcodeUrl" class="qrcode-img" />

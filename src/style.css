@@ -13,6 +13,12 @@
   --handwriting-font: 'HarmonyOS_Sans', sans-serif;
   --ink-color: #2c3e50;
   --highlight-color: #f1c40f80;
+  --danger-color: #c0392b;
+  --success-color: #27ae60;
+  --warning-color: #f39c12;
+  --border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --box-shadow: 3px 3px 0 var(--text-color);
+  --box-shadow-active: 1px 1px 0 var(--text-color);
 }
 
 body {
@@ -23,26 +29,162 @@ body {
   min-height: 100vh;
 }
 
-/* Simulate paper texture effect with a pseudo-element overlay if needed, 
-   or keep it clean with just the grid. Let's add a subtle noise maybe later. */
-
-button {
+.btn {
   font-family: var(--handwriting-font);
+  background: var(--paper-bg);
+  border: 2px solid var(--text-color);
+  border-radius: var(--border-radius);
+  padding: 10px 15px;
+  font-size: 1.1em;
+  box-shadow: var(--box-shadow);
+  transition: transform 0.1s;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-color);
+  white-space: nowrap;
+  text-align: left;
 }
 
-input,
-textarea {
+.btn:hover {
+  background: #fff;
+  transform: scale(1.02);
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--box-shadow-active);
+}
+
+.btn--primary {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.btn--danger {
+  background: var(--danger-color);
+  color: white;
+  border-color: var(--danger-color);
+}
+
+.btn--warning {
+  background: var(--warning-color);
+  color: white;
+  border-color: var(--warning-color);
+}
+
+.btn--outline {
+  background: transparent;
+  border-style: dashed;
+}
+
+.btn--fab {
+  position: fixed;
+  bottom: 30px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 1.5em;
+  z-index: 900;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.input,
+.textarea {
   font-family: var(--handwriting-font);
   background: transparent;
   border: none;
   border-bottom: 1px dashed var(--text-color);
   color: var(--ink-color);
   font-size: inherit;
+  padding: 8px 0;
+  width: 100%;
 }
 
-input:focus,
-textarea:focus {
+.input:focus,
+.textarea:focus {
   outline: none;
   border-bottom: 2px solid var(--accent-color);
+}
+
+.label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--paper-bg);
+  padding: 25px;
+  border: 2px dashed var(--text-color);
+  border-radius: 15px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.separator {
+  height: 2px;
+  background: #ccc;
+  margin: 10px 0;
+  border-radius: 2px;
+  width: 100%;
+}
+
+.version-info {
+  font-size: 0.8em;
+  color: #666;
+  text-align: center;
+  padding: 5px 0;
+  font-family: var(--handwriting-font);
+}
+
+.loading-spinner {
+  font-size: 3em;
+  animation: writing 1s infinite alternate;
+  margin-top: 20px;
+}
+
+@keyframes writing {
+  from { transform: translateX(-20px) rotate(-10deg); }
+  to { transform: translateX(20px) rotate(10deg); }
+}
+
+.empty-list {
+  color: #999;
+  padding: 20px;
+  text-align: center;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 1.5em;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.delete-btn:hover {
+  color: var(--danger-color);
 }

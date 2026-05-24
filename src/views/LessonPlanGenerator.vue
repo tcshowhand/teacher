@@ -163,18 +163,15 @@ const goToExam = (chapter, index, type) => {
 
 const showAIChat = ref(false)
 
-// 删除某一章节
 const deleteChapter = (index) => {
   if (generatedChapters.value.length <= 1) {
     alert('至少保留一个教案！')
     return
   }
   generatedChapters.value.splice(index, 1)
-  // 重新编号
   generatedChapters.value.forEach((ch, i) => { ch.id = i + 1 })
 }
 
-// 在指定位置后插入一个新章节
 const addChapterAfter = (index) => {
   const newChapter = {
     id: Date.now(),
@@ -184,11 +181,9 @@ const addChapterAfter = (index) => {
     teachingMode: '理论课'
   }
   generatedChapters.value.splice(index + 1, 0, newChapter)
-  // 重新编号
   generatedChapters.value.forEach((ch, i) => { ch.id = i + 1 })
 }
 
-// 在末尾添加一个新章节
 const addChapterAtEnd = () => {
   addChapterAfter(generatedChapters.value.length - 1)
 }
@@ -274,7 +269,6 @@ const importFromJson = (event) => {
   event.target.value = ''
 }
 
-// ------------------ 一键全链路批量后台生成系统 ------------------
 const generationStatuses = ref({})
 const isBatchGenerating = ref(false)
 const batchCurrentIndex = ref(0)
@@ -284,10 +278,9 @@ const generateAllForChapter = async (chapter, index) => {
   if (generationStatuses.value[chapter.id]?.status === 'plan' || 
       generationStatuses.value[chapter.id]?.status === 'exam' || 
       generationStatuses.value[chapter.id]?.status === 'ppt') {
-    return // 正在生成中，防重复触发
+    return
   }
 
-  // 初始化状态
   generationStatuses.value[chapter.id] = {
     status: 'plan',
     errorMsg: '',
@@ -301,7 +294,6 @@ const generateAllForChapter = async (chapter, index) => {
   const educationLevel = settings.educationLevel || '通用'
 
   try {
-    // ------------------ 阶段一：研制教案 ------------------
     const planPrompt = `请为一个课程生成详细的教案 JSON 数据。
     课程名称：${courseName.value}
     章节名称：${chapter.mainTitle}
@@ -373,7 +365,6 @@ const generateAllForChapter = async (chapter, index) => {
       await localforage.setItem(planStorageKey, parsedPlan)
     })
 
-    // ------------------ 阶段二：命制配套试题 ------------------
     generationStatuses.value[chapter.id].status = 'exam'
     const planData = generationStatuses.value[chapter.id].planData
     const questionCount = settings.examQuestionCount || 5
@@ -436,7 +427,6 @@ const generateAllForChapter = async (chapter, index) => {
       await localforage.setItem(examStorageKey, parsedExam)
     })
 
-    // ------------------ 阶段三：编排 PPT 课件 ------------------
     generationStatuses.value[chapter.id].status = 'ppt'
     let lessonPlanContext = ''
     if (planData) {
@@ -530,7 +520,6 @@ const batchGenerateAllChapters = async () => {
     const chapter = generatedChapters.value[i]
     batchCurrentIndex.value = i + 1
 
-    // 智能平滑滚动到当前备课卡片，增强全自动沉浸式视觉交互体验
     const cardEl = document.querySelector(`.chapters-grid .chapter-card:nth-child(${i + 1})`)
     if (cardEl) {
       cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -577,7 +566,6 @@ const exportAllDetailedJson = async () => {
         detail = JSON.parse(detail)
       }
 
-      // 添加元数据以便后续导入还原
       detail.__meta = {
         chapterId: chapter.id,
         index: i
@@ -627,7 +615,6 @@ const importAllDetailedJson = (event) => {
       if (pkg.sessionsPerPlan !== undefined) sessionsPerPlan.value = pkg.sessionsPerPlan
       if (pkg.totalWeeks !== undefined) totalWeeks.value = pkg.totalWeeks
 
-      // 更新大纲
       generatedChapters.value = plans.map((p, i) => {
         const meta = p.__meta || {}
         return {
@@ -639,7 +626,6 @@ const importAllDetailedJson = (event) => {
         }
       })
 
-      // 异步保存详细内容到 localforage
       for (const plan of plans) {
         const meta = plan.__meta || {}
         const chapterId = meta.chapterId || generatedChapters.value[plans.indexOf(plan)].id
@@ -727,34 +713,27 @@ const importAllDetailedJson = (event) => {
       <div class="results-header">
         <h2>生成结果</h2>
         <button class="batch-gen-btn" @click="batchGenerateAllChapters" :disabled="isBatchGenerating">
-          <span v-if="isBatchGenerating">⚡ 批量备课中 (第 {{ batchCurrentIndex }}/{{ batchTotalCount }} 章)...</span>
-          <span v-else>⚡ AI 一键全自动批量备课 (教案+试题+课件)</span>
+          <span v-if="isBatchGenerating">批量备课中 (第 {{ batchCurrentIndex }}/{{ batchTotalCount }} 章)...</span>
+          <span v-else>AI 一键全自动批量备课 (教案+试题+课件)</span>
         </button>
       </div>
       <div class="chapters-grid">
         <div v-for="(chapter, index) in generatedChapters" :key="chapter.id" class="chapter-card">
           <div class="chapter-badge">#{{ index + 1 }}</div>
-          <!-- 卡片左上角：仅保留删除按钮，悬停显示 -->
           <div class="card-controls">
             <button class="card-ctrl-btn delete-btn" @click="deleteChapter(index)" title="删除此教案">✕</button>
           </div>
           <div class="chapter-info">
-            <!-- Main Title -->
             <input v-model="chapter.mainTitle" class="editable-title main-title" placeholder="大标题" />
-            <!-- Subtitle -->
             <input v-model="chapter.subTitle" class="editable-title sub-title" placeholder="小标题" />
-
-            <!-- Teaching Mode Select -->
             <select v-model="chapter.teachingMode" class="mode-select">
               <option value="理论课">理论课</option>
               <option value="实践课">实践课</option>
               <option value="理实一体课">理实一体课</option>
             </select>
 
-            <!-- Summary -->
             <textarea v-model="chapter.summary" class="editable-summary" placeholder="摘要内容..."></textarea>
             
-            <!-- 备课包全自动后台生成状态指示器 -->
             <div v-if="generationStatuses[chapter.id]" class="gen-status-box" :class="generationStatuses[chapter.id].status">
               <div class="gen-status-header">
                 <span class="gen-status-text">
@@ -772,29 +751,26 @@ const importAllDetailedJson = (event) => {
           </div>
           
           <div class="actions">
-            <!-- 主操作：一键全套独占一行 -->
             <button class="action-btn quick-gen-btn action-btn-full"
                     @click="generateAllForChapter(chapter, index)"
                     :disabled="generationStatuses[chapter.id]?.status === 'plan' || generationStatuses[chapter.id]?.status === 'exam' || generationStatuses[chapter.id]?.status === 'ppt'"
                     title="一次性在后台生成该章节的完整配套教案、试卷和课件">
-              ⚡ 一键全套备课（教案+试题+课件）
+              一键全套备课（教案+试题+课件）
             </button>
-            <!-- 次级操作：四个按钮分两列 -->
             <div class="actions-secondary">
-              <button class="action-btn plan-btn" @click="goToExam(chapter, index, 'lesson_plan')">📖 教案编辑</button>
-              <button class="action-btn exam-btn" @click="goToExam(chapter, index, 'exam')">📝 试题编辑</button>
-              <button class="action-btn ppt-btn" @click="goToExam(chapter, index, 'ppt')">💻 PPT课件</button>
-              <button class="action-btn insert-action-btn" @click="addChapterAfter(index)" title="在此教案后插入新教案">↓ 新增</button>
+              <button class="action-btn plan-btn" @click="goToExam(chapter, index, 'lesson_plan')">教案编辑</button>
+              <button class="action-btn exam-btn" @click="goToExam(chapter, index, 'exam')">试题编辑</button>
+              <button class="action-btn ppt-btn" @click="goToExam(chapter, index, 'ppt')">PPT课件</button>
+              <button class="action-btn insert-action-btn" @click="addChapterAfter(index)" title="在此教案后插入新教案">新增</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- API Key Alert Modal -->
     <div class="modal-overlay" v-if="showApiKeyAlertModal" style="z-index: 2300;">
       <div class="modal-content">
-        <h3>⚠️ 需要配置 API Key</h3>
+        <h3>需要配置 API Key</h3>
         <p>AI 功能需要配置阿里云 DashScope API Key 才能使用。</p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showApiKeyAlertModal = false">取消</button>
@@ -803,7 +779,6 @@ const importAllDetailedJson = (event) => {
       </div>
     </div>
 
-    <!-- AI Chat Assistant -->
     <AIChatAssistant v-model="showAIChat" :currentContent="generatedChapters" :systemContext="`您是课程大纲规划助手。
 当前课程信息：
 - 课程名称：${courseName}
@@ -827,9 +802,8 @@ const importAllDetailedJson = (event) => {
 **重要：当修改课程主题时，务必同时更新副标题和摘要，确保内容一致性，不要保留旧的内容。**
 **重要：严禁增加或删除章节，只修改现有内容。**`" @update-content="handleAIUpdate" />
 
-    <!-- Floating AI Chat Button -->
     <button class="ai-chat-fab" @click="showAIChat = !showAIChat" title="AI 助手">
-      🤖 大纲助手
+      大纲助手
     </button>
 
     <SettingsModal v-if="showSettings" :currentModelId="currentModelId" :show-model-selector="true"
@@ -838,7 +812,6 @@ const importAllDetailedJson = (event) => {
     <ServiceModal v-if="showServiceModal" @close="showServiceModal = false" />
     <LoginModal v-if="showLoginModal" @close="showLoginModal = false" />
 
-    <!-- Side Fixed Toolbar -->
     <div class="results-side-toolbar" v-if="generatedChapters.length > 0 && !isGenerating">
       <button class="side-action-btn outline-export" @click="exportToJson" title="仅导出教案大纲结构">
         📤 导出大纲
@@ -922,7 +895,6 @@ h1 {
   font-weight: bold;
 }
 
-/* Settings Button */
 .toolbar-top {
   position: absolute;
   top: 20px;
@@ -988,7 +960,6 @@ h1 {
   box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.15);
 }
 
-/* Input Section */
 .input-section {
   background: white;
   padding: 40px;
@@ -999,7 +970,6 @@ h1 {
   gap: 20px;
 }
 
-/* Tape effect (pure css decoration) */
 .input-section::before {
   content: '';
   position: absolute;
@@ -1015,7 +985,6 @@ h1 {
   z-index: 1;
 }
 
-/* 基础输入框容器 */
 .basic-inputs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1033,7 +1002,6 @@ h1 {
   gap: 20px;
 }
 
-/* 大纲输入框容器 */
 .outline-inputs {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
@@ -1103,7 +1071,6 @@ input:focus {
   color: #3498db;
 }
 
-/* Generate Button */
 .generate-btn {
   padding: 12px 30px;
   font-size: 1.2em;
@@ -1140,7 +1107,6 @@ input:focus {
   cursor: wait;
 }
 
-/* Results Section */
 .results-header {
   display: flex;
   align-items: center;
@@ -1181,7 +1147,6 @@ input:focus {
   box-shadow: 5px 5px 0 rgba(39, 174, 96, 0.3);
 }
 
-/* 卡片内部控制按钮容器 */
 .card-controls {
   position: absolute;
   top: 8px;
@@ -1428,7 +1393,6 @@ input:focus {
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
 }
 
-/* Stagger animation for cards */
 .chapter-card:nth-child(1) {
   animation-delay: 0.1s;
 }
@@ -1587,7 +1551,6 @@ input:focus {
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.15);
 }
 
-/* Side Toolbar Styles */
 .results-side-toolbar {
   position: fixed;
   right: 20px;
@@ -1663,7 +1626,6 @@ input:focus {
   }
 }
 
-/* 一键全套 & 全局批量备课 Neo-brutalism 漫画涂鸦风格样式 */
 .batch-gen-btn {
   padding: 10px 22px;
   font-size: 0.9em;
