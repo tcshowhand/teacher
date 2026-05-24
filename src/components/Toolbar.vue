@@ -38,7 +38,7 @@ const handleFileImport = (event) => {
 }
 
 
-const appVersion = 'v1.0.0'
+const appVersion = 'v1.0.1'
 </script>
 
 <template>
@@ -138,7 +138,7 @@ const appVersion = 'v1.0.0'
 
 .version-info {
   font-size: 0.8em;
-  color: #666;
+  color: #ffffff;
   text-align: center;
   padding: 5px 0;
   font-family: var(--handwriting-font, inherit);

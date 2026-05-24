@@ -787,19 +787,16 @@ const handleAIUpdate = (newData) => {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 60px;
-  height: 60px;
   background: #2c3e50;
-  color: white;
-  border: none;
+  color: #fff;
   border-radius: 30px;
   padding: 12px 24px;
   font-size: 1.1em;
-  font-weight: bold;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  font-weight: 700;
+  box-shadow: 0 4px 10px #0000004d;
   cursor: pointer;
   z-index: 900;
-  transition: transform 0.2s;
+  transition: transform .2s;
   font-family: var(--handwriting-font);
   border: 2px solid white;
 }
