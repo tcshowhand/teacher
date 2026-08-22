@@ -12,7 +12,7 @@ import localforage from 'localforage'
 import { useRoute } from 'vue-router'
 import { exportExamToWord } from '../utils/exportExamWord'
 
-import { sendToQwenAIDialogue } from '../api/qwenAPI'
+import { sendToQwenAIDialogue, generateImage } from '../api/qwenAPI'
 
 import { useSettingsStore } from '../store/settings'
 import { DEFAULT_MODEL_ID } from '../config/models'
@@ -22,6 +22,9 @@ const settings = useSettingsStore()
 const currentDocId = ref('')
 const examData = ref(null)
 const isGeneratingExam = ref(false)
+const isGeneratingImages = ref(false)
+const imageGenProgress = ref('')
+const imageGenStats = ref({ done: 0, total: 0 })
 
 
 const TEMPLATES_KEY = 'exam_paper_templates_v1'
@@ -415,12 +418,55 @@ const confirmGenerateExamPaper = async () => {
         }
 
         examData.value = newData
+
+        // 文字生成成功后，若启用图片生成开关，则为每道题生成配图
+        if (settings.enableImageGen && newData.problems && newData.problems.length > 0) {
+            // 必须通过 examData.value.problems 操作，才能触发响应式更新
+            generateImagesForProblems()
+        }
       } catch (e) {
         console.error('Failed to parse AI exam', e)
         alert('生成失败，AI 返回格式不正确。')
       }
     }
   })
+}
+
+/**
+ * 为试题生成配图（顺序生成，避免并发触发风控和超额费用）
+ * 通过 examData.value.problems 操作以保证响应式
+ */
+const generateImagesForProblems = async () => {
+    const problems = examData.value.problems
+    if (!problems || problems.length === 0) return
+
+    isGeneratingImages.value = true
+    imageGenStats.value = { done: 0, total: problems.length }
+    imageGenProgress.value = `准备生成配图...`
+
+    for (let i = 0; i < problems.length; i++) {
+        // 通过 reactive proxy 取题，确保后续赋值触发更新
+        const p = examData.value.problems[i]
+        const desc = (p.title || '') + ' ' + (p.desc || '')
+        const prompt = `为以下试题生成一张手账风格的题目讲解图，题目为：${desc}`.slice(0, 200)
+        imageGenProgress.value = `正在生成第 ${i + 1}/${problems.length} 题配图...`
+        try {
+            const imageUrl = await generateImage(prompt, (msg) => {
+                imageGenProgress.value = `第 ${i + 1}/${problems.length} 题：${msg}`
+            })
+            // 关键：通过 reactive proxy 赋值，触发视图更新
+            examData.value.problems[i].image = imageUrl
+            imageGenStats.value.done = i + 1
+        } catch (err) {
+            console.error(`第 ${i + 1} 题配图生成失败:`, err)
+            imageGenProgress.value = `第 ${i + 1} 题配图失败: ${err.message}`
+            // 失败不阻塞，继续下一题
+            await new Promise(r => setTimeout(r, 1000))
+        }
+    }
+
+    isGeneratingImages.value = false
+    imageGenProgress.value = `配图生成完成 (${imageGenStats.value.done}/${problems.length})`
 }
 
 const showAIChat = ref(false)
@@ -451,9 +497,17 @@ const handleAIUpdate = (newData) => {
     />
     
     <div class="ai-actions">
-      <button class="ai-gen-btn" @click="generateExamPaper" :disabled="isGeneratingExam">
-        {{ isGeneratingExam ? 'AI 生成中...' : `AI 一键生成试题 (${settings.examQuestionCount}题)` }}
+      <button class="ai-gen-btn" @click="generateExamPaper" :disabled="isGeneratingExam || isGeneratingImages">
+        {{ isGeneratingExam ? 'AI 生成中...' : (isGeneratingImages ? '配图生成中...' : `AI 一键生成试题 (${settings.examQuestionCount}题)`) }}
       </button>
+      <div class="image-status" v-if="isGeneratingImages || imageGenProgress">
+        <span class="status-icon">🖼️</span>
+        <span>{{ imageGenProgress }}</span>
+        <span class="status-count" v-if="imageGenStats.total > 0">{{ imageGenStats.done }}/{{ imageGenStats.total }}</span>
+      </div>
+      <p class="image-flag-tip" v-if="settings.enableImageGen">
+        ⚠️ 已开启图片生成，本次将为每题生成配图（费用较高）
+      </p>
     </div>
 
     <AIChatAssistant 
@@ -557,6 +611,12 @@ const handleAIUpdate = (newData) => {
       <div class="modal-content">
         <h3>AI 一键生成</h3>
         <p>AI 将根据当前的课程信息自动生成试题。<br><b>注意：此操作可能会覆盖您已手动输入的内容。</b></p>
+        <p v-if="settings.enableImageGen" class="confirm-image-tip">
+          ⚠️ 已开启图片生成：试题生成完成后，将为每道题自动生成配图（费用较高，预计 {{ examData?.problems?.length || settings.examQuestionCount }} 张）。
+        </p>
+        <p v-else class="confirm-image-tip-muted">
+          图片生成未开启（可在「设置」中开启，费用较高）。
+        </p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="showAIGenConfirmModal = false">取消</button>
           <button class="modal-btn confirm" @click="confirmGenerateExamPaper">✨ 开始生成</button>
@@ -647,6 +707,54 @@ const handleAIUpdate = (newData) => {
     border-color: #999;
     box-shadow: none;
     cursor: wait;
+}
+
+.image-status {
+    margin-top: 12px;
+    padding: 8px 14px;
+    background: #fff8e1;
+    border: 2px dashed #fb8c00;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95em;
+    color: #6b4500;
+}
+
+.image-status .status-icon {
+    animation: writing 1s infinite alternate;
+}
+
+.image-status .status-count {
+    background: #fb8c00;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 0.85em;
+}
+
+.image-flag-tip {
+    margin-top: 8px;
+    color: #c0392b;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.confirm-image-tip {
+    color: #c0392b;
+    font-weight: bold;
+    background: #fdecea;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.confirm-image-tip-muted {
+    color: #888;
+    font-size: 0.9em;
+    margin-top: 10px;
 }
 
 .tag-plan {

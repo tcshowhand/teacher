@@ -92,10 +92,28 @@ const openAliyunLink = () => {
       </div>
 
       <div class="form-group">
-        <label>模型名称</label>
+        <label>文字模型</label>
         <input v-model="settings.modelName" placeholder="qwen-turbo" class="modal-input" />
         <p class="tips">默认为 <code>qwen-turbo</code>，也可填 <code>qwen-plus</code> 等。</p>
       </div>
+
+      <div class="form-group">
+        <label>图片模型</label>
+        <input v-model="settings.imageModelName" placeholder="wanx2.1-t2i-turbo" class="modal-input" />
+        <p class="tips">默认为 <code>wanx2.1-t2i-turbo</code>，用于生成图片。</p>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="settings.enableImageGen" class="checkbox-input" />
+          <span>启用 AI 图片生成</span>
+        </label>
+        <p class="tips warning-tips">⚠️ 图片生成费用较高，开启后「一键生成试题」将为每道题自动配图。请谨慎使用。</p>
+      </div>
+
+      <p class="tips">
+        <a href="https://bailian.console.aliyun.com/cn-beijing?spm=a2c4g.11186623.0.0.26a25ec6m4fJB2&amp;tab=model#/model-market/all" target="_blank">模型名称获取地址</a>
+      </p>
 
 
 
@@ -202,5 +220,26 @@ label {
 
 .modal-btn:hover {
   transform: scale(1.05);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 1.05em;
+}
+
+.checkbox-input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #27ae60;
+  flex-shrink: 0;
+}
+
+.warning-tips {
+  color: #c0392b;
+  font-weight: bold;
 }
 </style>

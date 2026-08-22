@@ -5,6 +5,8 @@ const STORE_KEY = 'exam_ai_settings_v1'
 const defaultSettings = {
     aliApiKey: '',
     modelName: 'qwen-turbo',
+    imageModelName: 'wanx2.1-t2i-turbo',
+    enableImageGen: false,
     aliApiUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
     examQuestionCount: 5,
     educationLevel: '大专'
